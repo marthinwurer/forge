@@ -2073,8 +2073,18 @@ public class ComputerUtil {
             return finalHandSize;
         }
 
+        CardCollectionView hand = ai.getCardsIn(ZoneType.Hand);
         CardCollectionView library = ai.getCardsIn(ZoneType.Library);
         int landsInDeck = CardLists.count(library, CardPredicates.isType("Land"));
+        int cards_in_library = library.size();
+
+        // TODO make sure that we don't gimp decks like tron
+
+        // get the maximum number of pips of all colors in the deck, the maximum cmc, and the average cmc of the deck
+
+
+
+
 
         // no land deck, can't do anything better
         if (landsInDeck == 0) {

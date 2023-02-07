@@ -2007,6 +2007,10 @@ public class GameAction {
         }
     }
 
+    /**
+     * Draws a filtered starting hand. Called when that option is set in settings.
+     * @param p1
+     */
     private void drawStartingHand(Player p1) {
         //check initial hand
         List<Card> lib1 = Lists.newArrayList(p1.getZone(ZoneType.Library).getCards().threadSafeIterable());
