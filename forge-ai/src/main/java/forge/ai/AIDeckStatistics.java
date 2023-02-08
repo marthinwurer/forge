@@ -10,6 +10,7 @@ import forge.game.player.Player;
 import forge.item.PaperCard;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
@@ -33,6 +34,16 @@ public class AIDeckStatistics {
         this.maxColoredCost = maxColoredCost;
         this.maxPips = maxPips;
         this.numLands = numLands;
+    }
+
+    public String toString() {
+        return "AIDeckStatistics(averageCMC=" + averageCMC +
+                ", stddevCMC=" + stddevCMC +
+                ", maxCost=" + maxCost +
+                ", maxColoredCost=" + maxColoredCost +
+                ", maxPips=" + Arrays.toString(maxPips) +
+                ", numLands=" + numLands +
+                ")";
     }
 
     public static AIDeckStatistics fromCardList(List<CardRules> cards) {

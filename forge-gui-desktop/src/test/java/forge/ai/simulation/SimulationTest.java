@@ -33,11 +33,10 @@ import forge.model.FModel;
 public class SimulationTest {
     private static boolean initialized = false;
 
-    public Game resetGame() {
+    public static Game createGameWithDecks(Deck d1, Deck d2) {
         // need to be done after FModel.initialize, or the Localizer isn't loaded yet
         List<RegisteredPlayer> players = Lists.newArrayList();
-        Deck d1 = new Deck();
-        players.add(new RegisteredPlayer(d1).setPlayer(new LobbyPlayerAi("p2", null)));
+        players.add(new RegisteredPlayer(d2).setPlayer(new LobbyPlayerAi("p2", null)));
         Set<AIOption> options = new HashSet<>();
         options.add(AIOption.USE_SIMULATION);
         players.add(new RegisteredPlayer(d1).setPlayer(new LobbyPlayerAi("p1", options)));
@@ -49,7 +48,13 @@ public class SimulationTest {
         return game;
     }
 
-    protected Game initAndCreateGame() {
+    public Game resetGame() {
+        Deck d1 = new Deck();
+
+        return createGameWithDecks(d1, d1);
+    }
+
+    public static void initGame() {
         if (!initialized) {
             GuiBase.setInterface(new GuiDesktop());
             FModel.initialize(null, new Function<ForgePreferences, Void>() {
@@ -62,7 +67,10 @@ public class SimulationTest {
             });
             initialized = true;
         }
+    }
 
+    protected Game initAndCreateGame() {
+        initGame();
         return resetGame();
     }
 

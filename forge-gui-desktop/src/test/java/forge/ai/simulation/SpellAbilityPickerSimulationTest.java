@@ -10,6 +10,10 @@ import forge.model.FModel;
 import org.testng.AssertJUnit;
 import org.testng.annotations.Test;
 
+import forge.card.CardDb;
+import forge.deck.Deck;
+import forge.deck.DeckFormat;
+import forge.deck.generation.DeckGenerator5Color;
 import forge.game.Game;
 import forge.game.card.Card;
 import forge.game.card.CounterEnumType;
@@ -18,6 +22,7 @@ import forge.game.phase.PhaseType;
 import forge.game.player.Player;
 import forge.game.spellability.SpellAbility;
 import forge.game.zone.ZoneType;
+import forge.model.FModel;
 
 public class SpellAbilityPickerSimulationTest extends SimulationTest {
     @Test
@@ -298,6 +303,27 @@ public class SpellAbilityPickerSimulationTest extends SimulationTest {
     }
 
     @Test
+    public void playTaplandOverUntappedLand() {
+        Game game = initAndCreateGame();
+        Player p = game.getPlayers().get(1);
+
+        // ensure that manabase is developed over playing untapped lands
+        addCard("Forest", p);
+        addCardToZone("Forest", p, ZoneType.Hand);
+        addCardToZone("Hinterland Harbor", p, ZoneType.Hand);
+        addCardToZone("Mana Confluence", p, ZoneType.Hand);
+        Card desired = addCardToZone("Woodland Stream", p, ZoneType.Hand);
+        addCardToZone("Centaur Courser", p, ZoneType.Hand);
+        game.getPhaseHandler().devModeSet(PhaseType.MAIN1, p);
+        game.getAction().checkStateEffects(true);
+
+        // ensure that the tapland is paid
+        SpellAbilityPicker picker = new SpellAbilityPicker(game, p);
+        SpellAbility sa = picker.chooseSpellAbilityToPlay(null);
+        AssertJUnit.assertEquals(desired, sa.getHostCard());
+    }
+
+    @Test
     public void playBouncelandIfNoPlays() {
         Game game = initAndCreateGame();
         Player p = game.getPlayers().get(1);
@@ -478,6 +504,31 @@ public class SpellAbilityPickerSimulationTest extends SimulationTest {
         AssertJUnit.assertEquals(0, funky.size());
     }
 
+    @Test
+    public void testDeckStatisticsInTests() {
+        initGame();
+        CardDb cardDb = FModel.getMagicDb().getCommonCards();
+        final DeckGenerator5Color gen = new DeckGenerator5Color(cardDb, DeckFormat.Constructed);
+        final Deck first_deck = new Deck("first", gen.getDeck(60, false));
+        final Deck second_deck = new Deck("second", gen.getDeck(60, false));
+        Game game = createGameWithDecks(first_deck, second_deck);
+
+        Player p = game.getPlayers().get(1);
+
+        // start with a hand with a basic, a tapland, and a card that can't be cast
+        addCard("Forest", p);
+        addCardToZone("Forest", p, ZoneType.Hand);
+        addCardToZone("Hinterland Harbor", p, ZoneType.Hand);
+        Card desired = addCardToZone("Woodland Stream", p, ZoneType.Hand);
+        addCardToZone("Centaur Courser", p, ZoneType.Hand);
+        game.getPhaseHandler().devModeSet(PhaseType.MAIN1, p);
+        game.getAction().checkStateEffects(true);
+
+        // ensure that the tapland is paid
+        SpellAbilityPicker picker = new SpellAbilityPicker(game, p);
+        SpellAbility sa = picker.chooseSpellAbilityToPlay(null);
+        AssertJUnit.assertEquals(desired, sa.getHostCard());
+    }
 
     @Test
     public void testPlayRememberedCardsLand() {
