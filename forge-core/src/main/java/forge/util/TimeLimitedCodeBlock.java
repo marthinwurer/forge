@@ -1,4 +1,4 @@
-package forge.view;
+package forge.util;
 
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
@@ -34,6 +34,7 @@ public class TimeLimitedCodeBlock {
             //remove this if you do not want to cancel the job in progress
             //or set the argument to 'false' if you do not want to interrupt the thread
             future.cancel(true);
+            executor.shutdownNow();
             throw e;
         }
         catch (ExecutionException e) {

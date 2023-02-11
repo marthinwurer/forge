@@ -29,9 +29,21 @@ import forge.item.IPaperCard;
 import forge.localinstance.properties.ForgePreferences;
 import forge.localinstance.properties.ForgePreferences.FPref;
 import forge.model.FModel;
+import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeMethod;
 
 public class SimulationTest {
     private static boolean initialized = false;
+
+    @BeforeMethod
+    public static void setupSimSettings() {
+        GameSimulator.DO_CONSISTENCY_CHECK = true;
+    }
+
+    @AfterMethod
+    public static void teardownSimSettings() {
+        GameSimulator.DO_CONSISTENCY_CHECK = false;
+    }
 
     public static Game createGameWithDecks(Deck d1, Deck d2) {
         // need to be done after FModel.initialize, or the Localizer isn't loaded yet

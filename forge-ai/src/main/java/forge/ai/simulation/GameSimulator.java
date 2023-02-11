@@ -21,6 +21,7 @@ import forge.util.collect.FCollectionView;
 
 public class GameSimulator {
     public static boolean COPY_STACK = false;
+    public static boolean DO_CONSISTENCY_CHECK = false;
     final private SimulationController controller;
     private GameCopier copier;
     private Game simGame;
@@ -42,9 +43,9 @@ public class GameSimulator {
         debugLines = origLines;
 
         debugPrint = false;
-        origScore = eval.getScoreForGameState(origGame, origAiPlayer);
 
-        if (advanceToPhase == null) {
+        if (DO_CONSISTENCY_CHECK && advanceToPhase == null) {
+            origScore = eval.getScoreForGameState(origGame, origAiPlayer);
             ensureGameCopyScoreMatches(origGame, origAiPlayer);
         }
 
@@ -58,6 +59,8 @@ public class GameSimulator {
             Player copyOrigAiPlayer = copyOrigGame.getPlayers().get(1);
             resolveStack(copyOrigGame, copyOrigGame.getPlayers().get(0));
             origScore = eval.getScoreForGameState(copyOrigGame, copyOrigAiPlayer);
+        } else {
+            origScore = eval.getScoreForGameState(origGame, origAiPlayer);
         }
 
         debugPrint = false;
@@ -65,6 +68,7 @@ public class GameSimulator {
     }
 
     private void ensureGameCopyScoreMatches(Game origGame, Player origAiPlayer) {
+        System.out.println("Testing copy score");
         eval.setDebugging(true);
         List<String> simLines = new ArrayList<>();
         debugLines = simLines;

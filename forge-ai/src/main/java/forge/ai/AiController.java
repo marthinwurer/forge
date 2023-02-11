@@ -61,15 +61,14 @@ import forge.game.trigger.TriggerType;
 import forge.game.trigger.WrappedAbility;
 import forge.game.zone.ZoneType;
 import forge.item.PaperCard;
-import forge.util.Aggregates;
-import forge.util.ComparatorUtil;
-import forge.util.Expressions;
-import forge.util.MyRandom;
+import forge.util.*;
 import forge.util.collect.FCollectionView;
 import io.sentry.Breadcrumb;
 import io.sentry.Sentry;
 
 import java.util.*;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 /**
  * <p>
@@ -1464,7 +1463,30 @@ public class AiController {
         memory.clearMemorySet(AiCardMemory.MemorySet.HELD_MANA_SOURCES_FOR_NEXT_SPELL);
 
         if (useSimulation) {
-            return singleSpellAbilityList(simPicker.chooseSpellAbilityToPlay(null));
+            simPicker.stopped = false;
+            boolean succeeded = true;
+            List<SpellAbility> output = new ArrayList<>();
+            try {
+                TimeLimitedCodeBlock.runWithTimeout(() -> {
+                    List<SpellAbility> c = singleSpellAbilityList(simPicker.chooseSpellAbilityToPlay(null));
+                    if (c != null) {
+                        output.addAll(c);
+                    }
+                }, 30, TimeUnit.SECONDS);
+            } catch (TimeoutException e) {
+                System.err.println("Simulation timed out");
+                succeeded = false;
+                simPicker.stopped = true;
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+            if (succeeded) {
+                if (output.isEmpty()) {
+                    return null;
+                } else {
+                    return output;
+                }
+            }
         }
 
         CardCollection playBeforeLand = CardLists.filter(

@@ -11,6 +11,7 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
+import forge.util.TimeLimitedCodeBlock;
 import org.apache.commons.lang3.time.StopWatch;
 
 import forge.LobbyPlayer;

@@ -41,6 +41,8 @@ public class SpellAbilityPicker {
     private Plan plan;
     private int numSimulations;
 
+    public boolean stopped = false;
+
     public SpellAbilityPicker(Game game, Player player) {
         this.game = game;
         this.player = player;
@@ -92,6 +94,11 @@ public class SpellAbilityPicker {
 
     public SpellAbility chooseSpellAbilityToPlay(SimulationController controller) {
         printOutput = controller == null;
+
+        // if we're running in a timed out thread, just die.
+        if (stopped) {
+            return null;
+        }
 
         // Pass if top of stack is owned by me.
         if (!game.getStack().isEmpty() && game.getStack().peekAbility().getActivatingPlayer().equals(player)) {

@@ -81,6 +81,7 @@ public class GameStateEvaluator {
     }
 
     public Score getScoreForGameState(Game game, Player aiPlayer) {
+//        System.out.println("Evaluating game state");
         if (game.isGameOver()) {
             return getScoreForGameOver(game, aiPlayer);
         }
@@ -131,7 +132,7 @@ public class GameStateEvaluator {
 
         // evaluate mana base quality
         AIDeckStatistics stats = AIDeckStatistics.fromPlayer(aiPlayer);
-        System.out.println(stats);
+//        System.out.println(stats);
 
         score += evalManaBase(game, aiPlayer, stats);
         // TODO deal with opponents. Do we want to use perfect information to evaluate their manabase?
