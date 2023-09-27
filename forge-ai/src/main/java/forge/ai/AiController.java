@@ -520,6 +520,58 @@ public class AiController {
         }
 
         // TODO If there's nothing to do with the mana, then play a tapland
+        // The best option is a land that provides the most value over the rest of the game
+        // This can be a tapland if the game is slow enough or if it has a triggered ability
+        // also a fetchland, cracked on opponent's end step with the best information
+        // evolving wilds etc, true fetch (scalding tarn etc)
+        // Also need to take into account lower life totals and lands that hurt you
+        //
+        // alright, so most value over the rest of the game:
+        // default to mana spent, with a small priority to the current turn?
+        // so figure out the change in mana availible this turn and the next, with all pairs 
+        // of lands in hand. give a bonus for playing cards in hand on curve, with a
+        // statistical bonus for each other card in the deck for future turns.
+        // Prioritize basics if there is the possibilty of blood moon.
+        // some kind of temporal discount for future turns
+        //
+        // Okay, so start by figuring out what cards in hand you can cast now, 
+        // Then what cards in hand you can cast next turn,
+        //
+        // so, for each tapped land, calc the land score next turn.
+        // For each untapped land, calc the efficiency this turn.
+        // also calc the statistics of the cards in hand,
+        // and the castability of cards in hand.
+
+        CardCollection nonTappedLands = new CardCollection();
+        CardCollection tappedLands = new CardCollection();
+        for (Card land : landList) {
+            // check replacement effects if land would enter tapped or not
+            final Map<AbilityKey, Object> repParams = AbilityKey.mapFromAffected(land);
+            repParams.put(AbilityKey.Origin, land.getZone().getZoneType());
+            repParams.put(AbilityKey.Destination, ZoneType.Battlefield);
+            repParams.put(AbilityKey.Source, land);
+
+            boolean foundTapped = false;
+            for (ReplacementEffect re : player.getGame().getReplacementHandler().getReplacementList(ReplacementType.Moved, repParams, ReplacementLayer.Other)) {
+                SpellAbility reSA = re.ensureAbility();
+                if (reSA == null || !ApiType.Tap.equals(reSA.getApi())) {
+                    continue;
+                }
+                reSA.setActivatingPlayer(reSA.getHostCard().getController(), true);
+                if (reSA.metConditions()) {
+                    foundTapped = true;
+                    break;
+                }
+            }
+
+            if (foundTapped) {
+                tappedLands.add(land);
+            } else {
+                nonTappedLands.add(land);
+            }
+        }
+
+
 
         //try to skip lands that enter the battlefield tapped
         if (!nonLandsInHand.isEmpty()) {

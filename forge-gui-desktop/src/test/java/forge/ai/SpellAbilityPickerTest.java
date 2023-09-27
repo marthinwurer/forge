@@ -296,7 +296,6 @@ public class SpellAbilityPickerTest extends AITest {
     }
     */
 
-    @Ignore
     @Test
     public void playTaplandIfNoPlays() {
         Game game = initAndCreateGame();

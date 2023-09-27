@@ -170,16 +170,9 @@ public class GameStateEvaluator {
         return new Score(score, summonSickScore);
     }
 
-    public int evalManaBase(Game game, Player player, AIDeckStatistics statistics) {
-        // TODO should these be fixed quantities or should they be linear out of like 1000/(desired - total)?
-        int value = 0;
-        // get the colors of mana we can produce and the maximum number of pips
-        int max_colored = 0;
-        int max_total = 0;
-        // this logic taken from ManaCost.getColorShardCounts()
-        int[] counts = new int[6]; // in WUBRGC order
+    public int[] getCardManaBase(Card c) {
+        int[] counts = new int[7]; // in WUBRGC order, with the last index being the max total
 
-        for (Card c : player.getCardsIn(ZoneType.Battlefield)) {
             int max_produced = 0;
             for (SpellAbility m: c.getManaAbilities()) {
                 m.setActivatingPlayer(c.getController());
@@ -195,12 +188,41 @@ public class GameStateEvaluator {
                     }
                 }
             }
-            max_total += max_produced;
+            counts[6] += max_produced;
+        return counts;
+    }
+
+    public void addManaBase(int[] a, int[] b) {
+        for (int i = 0; i < 7; i++) {
+            a[i] += b[i];
         }
+    }
+
+    public int[] getBattlefieldManaBase(Player player) {
+        int[] counts = new int[7]; // in WUBRGC order, with the last index being the max total
+
+        for (Card c : player.getCardsIn(ZoneType.Battlefield)) {
+            int[] mb = getCardManaBase(c);
+            addManaBase(counts, mb);
+        }
+        return counts;
+    }
+
+    public int evalManaBase(Game game, Player player, AIDeckStatistics statistics) {
+        // TODO should these be fixed quantities or should they be linear out of like 1000/(desired - total)?
+        int value = 0;
+        // get the colors of mana we can produce and the maximum number of pips
+        int max_colored = 0;
+        int max_total = 0;
+        // this logic taken from ManaCost.getColorShardCounts()
+        int[] counts = new int[6]; // in WUBRGC order
+
+        counts = getBattlefieldManaBase(player);
+        max_total = counts[6];
 
         // Compare against the maximums in the deck and in the hand
         // TODO check number of castable cards in hand
-        for (int i = 0; i < counts.length; i++) {
+        for (int i = 0; i < 6; i++) {
             // for each color pip, add 100
             value += Math.min(counts[i], statistics.maxPips[i]) * 100;
         }
