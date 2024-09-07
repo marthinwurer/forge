@@ -114,7 +114,7 @@ public class DeckGenerator2Color extends DeckGeneratorBase {
             this.cardCounts.put(s, 0);
         }
 
-        int dblsAdded = addSomeStr((numLands / 6), duals);
+        int dblsAdded = addSomeStr((numLands / 4), duals);
         numLands -= dblsAdded;
 
         addBasicLand(numLands);

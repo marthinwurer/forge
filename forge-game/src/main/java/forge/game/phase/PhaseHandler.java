@@ -1149,7 +1149,7 @@ public class PhaseHandler implements java.io.Serializable {
         startFirstTurn(goesFirst, null);
     }
     public void startFirstTurn(Player goesFirst, Runnable startGameHook) {
-
+        System.out.println("Experimental restore: " + this.game.EXPERIMENTAL_RESTORE_SNAPSHOT);
         if (this.game.EXPERIMENTAL_LOOP) {
             System.out.println("Hit feature flag for experimental loop");
             discreteStartFirstTurn(goesFirst, startGameHook);
