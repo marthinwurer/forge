@@ -250,7 +250,7 @@ public class GameSimulator {
 
     public static void resolveStack(final Game game, final Player opponent) {
         // TODO: This needs to set an AI controller for all opponents, in case of multiplayer.
-        PlayerControllerAi sim = new PlayerControllerAi(game, opponent, opponent.getLobbyPlayer());
+        PlayerControllerAi sim = new PlayerControllerAi(game, opponent, opponent.getLobbyPlayer(), new HashSet<>());
         sim.setUseSimulation(true);
         opponent.runWithController(() -> {
             final Set<Card> allAffectedCards = new HashSet<>();

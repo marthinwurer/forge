@@ -86,7 +86,7 @@ public class GameFuzzingTest {
 
         int wins = 0;
         int draws = 0;
-        int num_games = 100;
+        int num_games = 1000;
 
         CardDb cardDb = FModel.getMagicDb().getCommonCards();
         DeckGenPool pool = new DeckGenPool();

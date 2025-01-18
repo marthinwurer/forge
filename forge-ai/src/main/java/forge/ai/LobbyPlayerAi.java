@@ -1,5 +1,8 @@
 package forge.ai;
 
+import java.util.Collection;
+import java.util.HashSet;
+import java.util.Iterator;
 import java.util.Set;
 
 import forge.LobbyPlayer;
@@ -14,9 +17,11 @@ public class LobbyPlayerAi extends LobbyPlayer implements IGameEntitiesFactory {
     private boolean rotateProfileEachGame;
     private boolean allowCheatShuffle;
     private boolean useSimulation;
+    public Set<AIOption> options;
 
     public LobbyPlayerAi(String name, Set<AIOption> options) {
         super(name);
+        this.options = options;
         if (options != null && options.contains(AIOption.USE_SIMULATION)) {
             this.useSimulation = true;
         }
@@ -41,7 +46,7 @@ public class LobbyPlayerAi extends LobbyPlayer implements IGameEntitiesFactory {
     }
 
     private PlayerControllerAi createControllerFor(Player ai) {
-        PlayerControllerAi result = new PlayerControllerAi(ai.getGame(), ai, this);
+        PlayerControllerAi result = new PlayerControllerAi(ai.getGame(), ai, this, new HashSet<AIOption>());
         result.setUseSimulation(useSimulation);
         result.allowCheatShuffle(allowCheatShuffle);
         return result;

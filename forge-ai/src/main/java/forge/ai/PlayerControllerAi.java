@@ -61,11 +61,17 @@ public class PlayerControllerAi extends PlayerController {
     private final AiController brains;
 
     private boolean pilotsNonAggroDeck = false;
+    public Set<AIOption> options;
 
     public PlayerControllerAi(Game game, Player p, LobbyPlayer lp) {
-        super(game, p, lp);
+        this(game, p, lp, new HashSet<>());
+    }
 
-        brains = new AiController(p, game);
+    public PlayerControllerAi(Game game, Player p, LobbyPlayer lp, Set<AIOption> options) {
+        super(game, p, lp);
+        this.options = options;
+
+        brains = new AiController(p, game, options);
     }
 
     public boolean pilotsNonAggroDeck() {

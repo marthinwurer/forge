@@ -86,15 +86,18 @@ public class AiController {
     private Combat predictedCombatNextTurn;
     private boolean cheatShuffle;
     private boolean useSimulation;
+    public boolean ab_one = false;
     private SpellAbilityPicker simPicker;
     private int lastAttackAggression;
     private boolean useLivingEnd;
+    private Set<AIOption> options;
 
-    public AiController(final Player computerPlayer, final Game game0) {
+    public AiController(final Player computerPlayer, final Game game0, final Set<AIOption> options) {
         player = computerPlayer;
         game = game0;
         memory = new AiCardMemory();
         simPicker = new SpellAbilityPicker(game, player);
+        this.options = options;
     }
 
     public boolean canCheatShuffle() {
@@ -1369,6 +1372,29 @@ public class AiController {
 
         CardCollection landsWannaPlay = ComputerUtilAbility.getAvailableLandsToPlay(game, player);
         if (landsWannaPlay != null) {
+            if (options.contains(AIOption.AB_OPTION_ONE)) {
+                Random r = new Random();
+                final List<SpellAbility> abilities = Lists.newArrayList();
+                Card land = landsWannaPlay.get(r.nextInt(landsWannaPlay.size()));
+
+                LandAbility la = new LandAbility(land, player, null);
+                la.setCardState(land.getCurrentState());
+                if (la.canPlay()) {
+                    abilities.add(la);
+                }
+
+                // add mayPlay option
+                for (CardPlayOption o : land.mayPlay(player)) {
+                    la = new LandAbility(land, player, o);
+                    la.setCardState(land.getCurrentState());
+                    if (la.canPlay()) {
+                        abilities.add(la);
+                    }
+                }
+                if (!abilities.isEmpty()) {
+                    return abilities;
+                }
+            }
             landsWannaPlay = filterLandsToPlay(landsWannaPlay);
             Log.debug("Computer " + game.getPhaseHandler().getPhase().nameForUi);
             if (landsWannaPlay != null && !landsWannaPlay.isEmpty()) {
