@@ -262,7 +262,6 @@ public class Game {
         return null;
     }
 
-
     public void addPlayer(int id, Player player) {
         playerCache.put(id, player);
     }
@@ -594,7 +593,7 @@ public class Game {
     }
 
     public Zone getZoneOf(final Card card) {
-        return card.getLastKnownZone();
+        return card == null ? null : card.getLastKnownZone();
     }
 
     public synchronized CardCollectionView getCardsIn(final ZoneType zone) {
@@ -980,13 +979,13 @@ public class Game {
         // Remove leftover items from
         getStack().removeInstancesControlledBy(p);
 
-        getTriggerHandler().onPlayerLost(p);
-
         ingamePlayers.remove(p);
         lostPlayers.add(p);
 
         final Map<AbilityKey, Object> runParams = AbilityKey.mapFromPlayer(p);
         getTriggerHandler().runTrigger(TriggerType.LosesGame, runParams, false);
+
+        getTriggerHandler().onPlayerLost(p);
     }
 
     /**
@@ -1185,6 +1184,12 @@ public class Game {
         // some cards need this info updated even after a player lost, so don't skip them
         for (Player player : getRegisteredPlayers()) {
             player.onCleanupPhase();
+        }
+        for (final Card c : getCardsIncludePhasingIn(ZoneType.Battlefield)) {
+            c.onCleanupPhase(getPhaseHandler().getPlayerTurn());
+        }
+        for (final Card card : getCardsInGame()) {
+            card.resetActivationsPerTurn();
         }
     }
 
