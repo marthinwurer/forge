@@ -1064,6 +1064,7 @@ public class PhaseHandler implements java.io.Serializable {
                     Card saHost = sa.getHostCard();
                     final Zone originZone = saHost.getZone();
 
+                    // TODO handle playing outside of the player controller
                     if (pPlayerPriority.getController().playChosenSpellAbility(sa)) {
                         // 117.3c If a player has priority when they cast a spell, activate an ability, [play a land]
                         // that player receives priority afterward.
@@ -1110,6 +1111,7 @@ public class PhaseHandler implements java.io.Serializable {
         // of Priority
         Player nextPlayer = game.getNextPlayerAfter(getPriorityPlayer());
 
+        // todo properly handle concession
         if (game.isGameOver() || nextPlayer == null) { return; } // conceded?
 
         if (DEBUG_PHASES) {

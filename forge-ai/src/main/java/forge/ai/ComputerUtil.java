@@ -82,6 +82,7 @@ public class ComputerUtil {
         final Zone hz = host.isCopiedSpell() ? null : host.getZone();
         source.setSplitStateToPlayAbility(sa);
 
+        // 601.2b:
         if (sa.isSpell() && !source.isCopiedSpell()) {
             sa = AbilityUtils.addSpliceEffects(sa);
             if (sa.getSplicedCards() != null && !sa.getSplicedCards().isEmpty() && ai.getController().isAI()) {
@@ -109,6 +110,7 @@ public class ComputerUtil {
             // 603.3c If no mode is chosen, the ability is removed from the stack.
             return false;
         }
+        // 601.2c
         if (chooseTargets != null) {
             chooseTargets.run();
             if (!sa.isTargetNumberValid()) {
