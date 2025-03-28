@@ -6,6 +6,7 @@ import forge.LobbyPlayer;
 import forge.ai.ComputerUtil;
 import forge.ai.ComputerUtilAbility;
 import forge.ai.ComputerUtilCard;
+import forge.ai.ComputerUtilMana;
 import forge.card.ColorSet;
 import forge.card.ICardFace;
 import forge.card.mana.ManaCost;
@@ -42,6 +43,8 @@ import java.util.Map;
 import java.util.Random;
 import java.util.function.Predicate;
 
+import static forge.ai.ComputerUtilMana.calculateManaCost;
+
 public class RandomController extends PlayerController {
     private static final Random RANDOM = new Random();
 
@@ -70,7 +73,11 @@ public class RandomController extends PlayerController {
         // list all spells if possible
         // list all activated abilities if possible
         // pick one at random
+        candidateSAs.add(null);
         SpellAbility chosen = candidateSAs.get(RANDOM.nextInt(candidateSAs.size()));
+        if (chosen == null) {
+            return null;
+        }
         chosen.setActivatingPlayer(player);
         return List.of(chosen);
     }
@@ -138,9 +145,22 @@ public class RandomController extends PlayerController {
         return abilities.get(RANDOM.nextInt(abilities.size()));
     }
 
+    /**
+     * Used for pregame actions, replacement effects, intervening if clauses
+     * Also some triggers, maybe?
+     * @param effectSA
+     * @param mayChoseNewTargets
+     */
     @Override
     public void playSpellAbilityNoStack(SpellAbility effectSA, boolean mayChoseNewTargets) {
+        effectSA.setActivatingPlayer(this.player);
+        System.out.println(effectSA.toString());
+
         throw new NotImplementedException();
+        // ai code
+//        if (mayChoseNewTargets)
+//            brains.doTrigger(effectSA, true); // first parameter does not matter, since return value won't be used
+//        ComputerUtil.playNoStack(player, effectSA, getGame(), true);
     }
 
     @Override
@@ -313,14 +333,22 @@ public class RandomController extends PlayerController {
         throw new NotImplementedException();
     }
 
+    /**
+     * Called when cards are revealed
+     * @param cards
+     * @param zone
+     * @param owner
+     * @param messagePrefix
+     * @param addMsgSuffix
+     */
     @Override
     public void reveal(CardCollectionView cards, ZoneType zone, Player owner, String messagePrefix, boolean addMsgSuffix) {
-        throw new NotImplementedException();
+        // TODO keep track of these
     }
 
     @Override
     public void reveal(List<CardView> cards, ZoneType zone, PlayerView owner, String messagePrefix, boolean addMsgSuffix) {
-        throw new NotImplementedException();
+        // TODO keep track of these
     }
 
     @Override
@@ -540,7 +568,7 @@ public class RandomController extends PlayerController {
 
     @Override
     public ReplacementEffect chooseSingleReplacementEffect(List<ReplacementEffect> possibleReplacers) {
-        throw new NotImplementedException();
+        return possibleReplacers.get(RANDOM.nextInt(possibleReplacers.size()));
     }
 
     @Override
@@ -585,9 +613,46 @@ public class RandomController extends PlayerController {
         throw new NotImplementedException();
     }
 
+    public SpellAbility pickManaAbilityToPlay() {
+        // pick a random mana ability that can pay towards the mana cost, and iterate until done
+        CardCollection cards = ComputerUtilAbility.getAvailableCards(this.getGame(), player);
+        cards = ComputerUtilCard.dedupeCards(cards);
+        List<SpellAbility> all = ComputerUtilAbility.getSpellAbilities(cards, player);
+        List<SpellAbility> candidateSAs = ComputerUtilAbility.getOriginalAndAltCostAbilities(all, player);
+        candidateSAs.removeIf(c -> !c.isManaAbility());
+
+        SpellAbility chosen = candidateSAs.get(RANDOM.nextInt(candidateSAs.size()));
+        return chosen;
+    }
+
+    /**
+     *
+     * @param toPay
+     * @param costPartMana
+     * @param sa
+     * @param prompt
+     * @param matrix
+     * @param effect
+     * @return false if unable to pay the full mana cost, otherwise true
+     */
     @Override
     public boolean payManaCost(ManaCost toPay, CostPartMana costPartMana, SpellAbility sa, String prompt, ManaConversionMatrix matrix, boolean effect) {
-        throw new NotImplementedException();
+        return ComputerUtilMana.payManaCost(new Cost(toPay, effect), player, sa, effect);
+//        // taken from ComputerUtilMana.payManaCost
+//        if ((sa.isOffering() && sa.getSacrificedAsOffering() == null) || (sa.isEmerge() && sa.getSacrificedAsEmerge() == null)) {
+//            // nothing was chosen
+//            return false;
+//        }
+//
+//        // pick a random mana ability that can pay towards the mana cost, and iterate until done
+//
+//        // if there's not enough mana in the mana pool to pay the cost, activate mana abilities until you can.
+//        // pick a combination of mana that can pay for the cost or activate a mana ability to add to the cost
+//        Cost cost = new Cost(toPay, effect);
+//        ManaCostBeingPaid manaCost = calculateManaCost(cost, sa, test, extraMana, effect);
+//        while (!cost.())
+//        SpellAbility chosen = pickManaAbilityToPlay();
+//        throw new NotImplementedException();
     }
 
     @Override
@@ -605,8 +670,21 @@ public class RandomController extends PlayerController {
         throw new NotImplementedException();
     }
 
+    /**
+     * Used for learn,
+     * @param destination
+     * @param origin
+     * @param sa
+     * @param fetchList
+     * @param delayedReveal
+     * @param selectPrompt
+     * @param isOptional
+     * @param decider
+     * @return
+     */
     @Override
     public Card chooseSingleCardForZoneChange(ZoneType destination, List<ZoneType> origin, SpellAbility sa, CardCollection fetchList, DelayedReveal delayedReveal, String selectPrompt, boolean isOptional, Player decider) {
+        System.out.println(sa.toString());
         throw new NotImplementedException();
     }
 

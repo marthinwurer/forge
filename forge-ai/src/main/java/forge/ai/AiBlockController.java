@@ -1047,7 +1047,7 @@ public class AiBlockController {
         clearBlockers(combat, possibleBlockers);
 
         diff = (ai.getLife() * 2) - 5; // This is the minimal gain for an unnecessary trade
-        if (ai.getController().isAI() && diff > 0 && ((PlayerControllerAi) ai.getController()).getAi().getBooleanProperty(AiProps.PLAY_AGGRO)) {
+        if (ai.getController().isAI() && (ai.getController() instanceof PlayerControllerAi) && diff > 0 && ((PlayerControllerAi) ai.getController()).getAi().getBooleanProperty(AiProps.PLAY_AGGRO)) {
             diff = 0;
         }
 
@@ -1280,7 +1280,7 @@ public class AiBlockController {
         int maxCreatDiffWithRepl = 0;
         int aiCreatureCount = 0;
         int oppCreatureCount = 0;
-        if (ai.getController().isAI()) {
+        if (ai.getController().isAI() && (ai.getController() instanceof PlayerControllerAi)) {
             AiController aic = ((PlayerControllerAi) ai.getController()).getAi();
             // simulation must get same results or it may crash
             if (!aic.usesSimulation()) {

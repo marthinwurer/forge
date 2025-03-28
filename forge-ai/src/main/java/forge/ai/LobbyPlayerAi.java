@@ -46,7 +46,7 @@ public class LobbyPlayerAi extends LobbyPlayer implements IGameEntitiesFactory {
     }
 
     private PlayerControllerAi createControllerFor(Player ai) {
-        PlayerControllerAi result = new PlayerControllerAi(ai.getGame(), ai, this, new HashSet<AIOption>());
+        PlayerControllerAi result = new PlayerControllerAi(ai.getGame(), ai, this, options);
         result.setUseSimulation(useSimulation);
         result.allowCheatShuffle(allowCheatShuffle);
         return result;

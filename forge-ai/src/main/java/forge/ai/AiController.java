@@ -24,6 +24,7 @@ import forge.ai.AiCardMemory.MemorySet;
 import forge.ai.ability.ChangeZoneAi;
 import forge.ai.ability.LearnAi;
 import forge.ai.simulation.GameStateEvaluator;
+import forge.ai.simulation.RandomController;
 import forge.ai.simulation.SpellAbilityPicker;
 import forge.card.CardStateName;
 import forge.card.CardType;
@@ -47,6 +48,7 @@ import forge.game.phase.PhaseType;
 import forge.game.player.Player;
 import forge.game.player.PlayerActionConfirmMode;
 import forge.game.player.PlayerCollection;
+import forge.game.player.PlayerController;
 import forge.game.replacement.ReplaceMoved;
 import forge.game.replacement.ReplacementEffect;
 import forge.game.replacement.ReplacementLayer;
@@ -1474,6 +1476,13 @@ public class AiController {
 
         if (useSimulation) {
             return singleSpellAbilityList(simPicker.chooseSpellAbilityToPlay(null));
+        }
+        if (options.contains(AIOption.AB_OPTION_ONE)) {
+            System.out.println("injecting random player controller");
+            // This is unholy injection. I'm sorry.
+            PlayerController pc = new RandomController(this.game, this.player, this.player.getLobbyPlayer());
+            this.player.dangerouslySetController(pc);
+            return pc.chooseSpellAbilityToPlay();
         }
 
         CardCollection playBeforeLand = CardLists.filter(

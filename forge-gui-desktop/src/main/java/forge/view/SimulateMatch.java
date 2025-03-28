@@ -181,6 +181,8 @@ public class SimulateMatch {
             System.out.println("Stopping slow match as draw");
         } catch (Exception | StackOverflowError e) {
             e.printStackTrace();
+            // this is a disgusting but simple way to keep the stack trace going. laziness at its finest
+            return null;
         } finally {
             if (sw.isStarted()) {
                 sw.stop();

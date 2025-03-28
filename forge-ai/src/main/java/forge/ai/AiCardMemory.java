@@ -209,13 +209,13 @@ public class AiCardMemory {
 
     // Static functions to simplify access to AI card memory of a given AI player.
     public static Set<Card> getMemorySet(Player ai, MemorySet set) {
-        if (!ai.getController().isAI()) {
+        if (!ai.getController().isAI() || !(ai.getController() instanceof PlayerControllerAi)) {
             return null;
         }
         return ((PlayerControllerAi)ai.getController()).getAi().getCardMemory().getMemorySet(set);
     }
     public static void rememberCard(Player ai, Card c, MemorySet set) {
-        if (!ai.getController().isAI()) {
+        if (!ai.getController().isAI() || !(ai.getController() instanceof PlayerControllerAi)) {
             return;
         }
         ((PlayerControllerAi)ai.getController()).getAi().getCardMemory().rememberCard(c, set);
@@ -224,7 +224,7 @@ public class AiCardMemory {
         aic.getCardMemory().rememberCard(c, set);
     }
     public static void forgetCard(Player ai, Card c, MemorySet set) {
-        if (!ai.getController().isAI()) {
+        if (!ai.getController().isAI() || !(ai.getController() instanceof PlayerControllerAi)) {
             return;
         }
         ((PlayerControllerAi)ai.getController()).getAi().getCardMemory().forgetCard(c, set);
@@ -233,7 +233,7 @@ public class AiCardMemory {
         aic.getCardMemory().forgetCard(c, set);
     }
     public static boolean isRememberedCard(Player ai, Card c, MemorySet set) {
-        if (!ai.getController().isAI()) {
+        if (!ai.getController().isAI() || !(ai.getController() instanceof PlayerControllerAi)) {
             return false;
         }
         return ((PlayerControllerAi)ai.getController()).getAi().getCardMemory().isRememberedCard(c, set);
@@ -242,7 +242,7 @@ public class AiCardMemory {
         return aic.getCardMemory().isRememberedCard(c, set);
     }
     public static boolean isRememberedCardByName(Player ai, String name, MemorySet set) {
-        if (!ai.getController().isAI()) {
+        if (!ai.getController().isAI() || !(ai.getController() instanceof PlayerControllerAi)) {
             return false;
         }
         return ((PlayerControllerAi)ai.getController()).getAi().getCardMemory().isRememberedCardByName(name, set);
@@ -251,7 +251,7 @@ public class AiCardMemory {
         return aic.getCardMemory().isRememberedCardByName(name, set);
     }
     public static void clearMemorySet(Player ai, MemorySet set) {
-        if (!ai.getController().isAI()) {
+        if (!ai.getController().isAI() || !(ai.getController() instanceof PlayerControllerAi)) {
             return;
         }
         ((PlayerControllerAi)ai.getController()).getAi().getCardMemory().clearMemorySet(set);
@@ -262,7 +262,7 @@ public class AiCardMemory {
         }
     }
     public static boolean isMemorySetEmpty(Player ai, MemorySet set) {
-        if (!ai.getController().isAI()) {
+        if (!ai.getController().isAI() || !(ai.getController() instanceof PlayerControllerAi)) {
             return false;
         }
         return ((PlayerControllerAi)ai.getController()).getAi().getCardMemory().isMemorySetEmpty(set);
