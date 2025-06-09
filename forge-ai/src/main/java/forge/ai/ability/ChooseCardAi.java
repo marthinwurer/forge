@@ -173,7 +173,12 @@ public class ChooseCardAi extends SpellAbilityAi {
             // Base Logic is choose "best"
             choice = ComputerUtilCard.getBestAI(options);
         } else if ("WorstCard".equals(logic)) {
-            choice = ComputerUtilCard.getWorstAI(options);
+            // Special handling for Sylvan Library - choose best cards to potentially keep
+            if ("Sylvan Library".equals(host.getName())) {
+                choice = ComputerUtilCard.getBestAI(options);
+            } else {
+                choice = ComputerUtilCard.getWorstAI(options);
+            }
         } else if ("OwnCard".equals(logic)) {
             CardCollectionView ownChoices = CardLists.filter(options, CardPredicates.isController(ai));
             if (ownChoices.isEmpty()) {

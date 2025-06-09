@@ -2151,6 +2151,46 @@ public class ChangeZoneAi extends SpellAbilityAi {
     public boolean willPayUnlessCost(SpellAbility sa, Player payer, Cost cost, boolean alreadyPaid, FCollectionView<Player> payers) {
         final Card host = sa.getHostCard();
 
+        // Special handling for Sylvan Library
+        if ("Sylvan Library".equals(host.getName()) && cost.hasSpecificCostType(CostPayLife.class)) {
+            CostPayLife lifeCost = cost.getCostPartByType(CostPayLife.class);
+            int lifeLoss = lifeCost.getAbilityAmount(sa);
+            
+            // Get the card we're deciding whether to keep (should be the chosen card)
+            for (Card c : AbilityUtils.getDefinedCards(host, sa.getParam("Defined"), sa)) {
+                // Don't pay life if we're at dangerously low life (threshold from AI profile)
+                if (payer.getLife() <= lifeLoss + AiProps.get(host.getController()).getInt(AiProps.AI_IN_DANGER_THRESHOLD)) {
+                    return false;
+                }
+                
+                // Evaluate if the card is worth 4 life based on its quality
+                int cardValue = ComputerUtilCard.evaluateCard(c);
+                
+                // Good cards (value > 200) are worth keeping if we have enough life
+                if (cardValue >= 200 && payer.getLife() > lifeLoss + 6) {
+                    return true;
+                }
+                
+                // Very good cards (value > 300) are worth keeping unless we're very low on life
+                if (cardValue >= 300 && payer.getLife() > lifeLoss + 4) {
+                    return true;
+                }
+                
+                // Don't pay life for mediocre cards unless we have plenty of life
+                if (cardValue < 150 && payer.getLife() <= lifeLoss + 10) {
+                    return false;
+                }
+                
+                // For lands and other low-value cards, be conservative
+                if (c.isLand() && payer.getLife() <= lifeLoss + 8) {
+                    return false;
+                }
+                
+                // Default: pay if we have reasonable life total
+                return payer.getLife() > lifeLoss + 6;
+            }
+        }
+
         int lifeLoss = 0;
         if (cost.hasSpecificCostType(CostDamage.class)) {
             if (!payer.canLoseLife()) {

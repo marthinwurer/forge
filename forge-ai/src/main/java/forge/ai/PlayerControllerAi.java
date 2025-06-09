@@ -52,9 +52,11 @@ import java.util.function.Predicate;
 
 
 /**
- * A prototype for player controller class
- *
- * Handles phase skips for now.
+ * AI implementation of PlayerController that delegates decision-making to an AiController.
+ * 
+ * This is the main interface between the game engine and the AI system.
+ * It implements all player decision methods by delegating complex logic to the internal
+ * AiController "brains" while handling direct responses for simple decisions.
  */
 public class PlayerControllerAi extends PlayerController {
     private final AiController brains;

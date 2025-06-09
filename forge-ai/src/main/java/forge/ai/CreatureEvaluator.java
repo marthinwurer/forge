@@ -37,7 +37,8 @@ public class CreatureEvaluator implements Function<Card, Integer> {
         int power = c.getNetCombatDamage();
         final int toughness = c.getNetToughness();
 
-        // TODO replace with ReplacementEffect checks
+        // Handle damage prevention keywords that effectively make creatures deal no damage
+        // These keywords are checked as strings since they're static text on cards
         if (c.hasKeyword("Prevent all combat damage that would be dealt by CARDNAME.")
                 || c.hasKeyword("Prevent all damage that would be dealt by CARDNAME.")
                 || c.hasKeyword("Prevent all combat damage that would be dealt to and dealt by CARDNAME.")
