@@ -2156,6 +2156,10 @@ public class ChangeZoneAi extends SpellAbilityAi {
             CostPayLife lifeCost = cost.getCostPartByType(CostPayLife.class);
             int lifeLoss = lifeCost.getAbilityAmount(sa);
             
+            // Scale thresholds based on starting life total (20 for most formats, 40 for Commander)
+            int startingLife = payer.getStartingLife();
+            double lifeRatio = (double) startingLife / 20.0; // Base thresholds on 20 life
+            
             // Get the card we're deciding whether to keep (should be the chosen card)
             for (Card c : AbilityUtils.getDefinedCards(host, sa.getParam("Defined"), sa)) {
                 // Don't pay life if we're at dangerously low life (threshold from AI profile)
@@ -2166,28 +2170,34 @@ public class ChangeZoneAi extends SpellAbilityAi {
                 // Evaluate if the card is worth 4 life based on its quality
                 int cardValue = ComputerUtilCard.evaluateCard(c);
                 
+                // Scale all thresholds by the life ratio
+                int conservativeThreshold = (int) (6 * lifeRatio) + lifeLoss;
+                int aggressiveThreshold = (int) (4 * lifeRatio) + lifeLoss;
+                int mediocreThreshold = (int) (10 * lifeRatio) + lifeLoss;
+                int landThreshold = (int) (8 * lifeRatio) + lifeLoss;
+                
                 // Good cards (value > 200) are worth keeping if we have enough life
-                if (cardValue >= 200 && payer.getLife() > lifeLoss + 6) {
+                if (cardValue >= 200 && payer.getLife() > conservativeThreshold) {
                     return true;
                 }
                 
                 // Very good cards (value > 300) are worth keeping unless we're very low on life
-                if (cardValue >= 300 && payer.getLife() > lifeLoss + 4) {
+                if (cardValue >= 300 && payer.getLife() > aggressiveThreshold) {
                     return true;
                 }
                 
                 // Don't pay life for mediocre cards unless we have plenty of life
-                if (cardValue < 150 && payer.getLife() <= lifeLoss + 10) {
+                if (cardValue < 150 && payer.getLife() <= mediocreThreshold) {
                     return false;
                 }
                 
                 // For lands and other low-value cards, be conservative
-                if (c.isLand() && payer.getLife() <= lifeLoss + 8) {
+                if (c.isLand() && payer.getLife() <= landThreshold) {
                     return false;
                 }
                 
                 // Default: pay if we have reasonable life total
-                return payer.getLife() > lifeLoss + 6;
+                return payer.getLife() > conservativeThreshold;
             }
         }
 
