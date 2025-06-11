@@ -4,6 +4,7 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import forge.ai.*;
+import forge.ai.simulation.GameStateEvaluator;
 import forge.card.CardType;
 import forge.card.MagicColor;
 import forge.game.Game;
@@ -2163,12 +2164,20 @@ public class ChangeZoneAi extends SpellAbilityAi {
             // Get the card we're deciding whether to keep (should be the chosen card)
             for (Card c : AbilityUtils.getDefinedCards(host, sa.getParam("Defined"), sa)) {
                 // Don't pay life if we're at dangerously low life (threshold from AI profile)
-                if (payer.getLife() <= lifeLoss + AiProps.get(host.getController()).getInt(AiProps.AI_IN_DANGER_THRESHOLD)) {
+                if (payer.getLife() <= lifeLoss + ((PlayerControllerAi) payer.getController()).getAi().getIntProperty(AiProps.AI_IN_DANGER_THRESHOLD)) {
                     return false;
                 }
                 
                 // Evaluate if the card is worth 4 life based on its quality
-                int cardValue = ComputerUtilCard.evaluateCard(c);
+                int cardValue;
+                if (c.isCreature()) {
+                    cardValue = ComputerUtilCard.evaluateCreature(c);
+                } else if (c.isLand()) {
+                    cardValue = GameStateEvaluator.evaluateLand(c);
+                } else {
+                    // For non-creature, non-land cards, use a simple heuristic based on CMC
+                    cardValue = c.getCMC() * 50;
+                }
                 
                 // Scale all thresholds by the life ratio
                 int conservativeThreshold = (int) (6 * lifeRatio) + lifeLoss;
