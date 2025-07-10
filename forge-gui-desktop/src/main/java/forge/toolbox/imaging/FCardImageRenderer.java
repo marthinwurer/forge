@@ -23,6 +23,7 @@ import java.util.regex.Pattern;
 import org.apache.commons.lang3.StringUtils;
 
 import forge.card.CardRarity;
+import forge.card.CardStateName;
 import forge.card.mana.ManaCost;
 import forge.game.card.CardView;
 import forge.game.card.CardView.CardStateView;
@@ -182,7 +183,7 @@ public class FCardImageRenderer {
             int w = width;
             boolean hasPTBox = false;
             if (!card.isSplitCard() && !card.isFlipCard()) {
-                final CardStateView state = card.getState(card.isAdventureCard() ? false : altState);
+                final CardStateView state = card.getState(card.hasSecondaryState() ? false : altState);
                 if ((state.isCreature() && !state.getKeywordKey().contains("Level up"))
                         || state.isPlaneswalker() || state.isBattle() || state.isVehicle())
                     hasPTBox = true;
@@ -203,13 +204,12 @@ public class FCardImageRenderer {
         if (card.isSplitCard()) {
             boolean needTranslation = !"en-US".equals(FModel.getPreferences().getPref(FPref.UI_LANGUAGE));
             final CardStateView leftState = card.getLeftSplitState();
-            final String leftText = needTranslation ? CardTranslation.getTranslatedOracle(leftState.getName()) : leftState.getOracleText();
+            final String leftText = needTranslation ? CardTranslation.getTranslatedOracle(leftState) : leftState.getOracleText();
             final CardStateView rightState = card.getRightSplitState();
-            String rightText = needTranslation ? CardTranslation.getTranslatedOracle(rightState.getName()) : rightState.getOracleText();
-            boolean isAftermath = (rightState.getKeywordKey().contains("Aftermath"));
+            String rightText = needTranslation ? CardTranslation.getTranslatedOracle(rightState) : rightState.getOracleText();
             BufferedImage leftArt = null;
             BufferedImage rightArt = null;
-            if (isAftermath) {
+            if (rightState.hasAftermath()) {
                 if (art != null) {
                     int leftWidth = Math.round(art.getWidth() * 0.61328125f);
                     leftArt = art.getSubimage(0, 0, leftWidth, art.getHeight());
@@ -247,9 +247,9 @@ public class FCardImageRenderer {
         } else if (card.isFlipCard()) {
             boolean needTranslation = !card.isToken() || !(card.getCloneOrigin() == null);
             final CardStateView state = card.getState(false);
-            final String text = card.getText(state, needTranslation ? CardTranslation.getTranslationTexts(state.getName(), "") : null);
+            final String text = card.getText(state, needTranslation ? CardTranslation.getTranslationTexts(state) : null);
             final CardStateView flipState = card.getState(true);
-            final String flipText = card.getText(flipState, needTranslation ? CardTranslation.getTranslationTexts(flipState.getName(), "") : null);
+            final String flipText = card.getText(flipState, needTranslation ? CardTranslation.getTranslationTexts(flipState) : null);
             CARD_ART_RATIO = 1.728f;
             updateAreaSizes(ratio, ratio);
             int heightAdjust = OUTER_BORDER_THICKNESS + PT_SIZE / 2;
@@ -258,19 +258,19 @@ public class FCardImageRenderer {
                 g.rotate(Math.PI);
             }
             drawFlipCardImage(g, state, text, flipState, flipText, width, height - heightAdjust, art);
-        } else if (card.isAdventureCard()) {
+        } else if (card.hasSecondaryState()) {
             boolean needTranslation = !card.isToken() || !(card.getCloneOrigin() == null);
             final CardStateView state = card.getState(false);
-            final String text = card.getText(state, needTranslation ? CardTranslation.getTranslationTexts(state.getName(), "") : null);
+            final String text = card.getText(state, needTranslation ? CardTranslation.getTranslationTexts(state) : null);
             final CardStateView advState = card.getState(true);
-            final String advText = card.getText(advState, needTranslation ? CardTranslation.getTranslationTexts(advState.getName(), "") : null);
+            final String advText = card.getText(advState, needTranslation ? CardTranslation.getTranslationTexts(advState) : null);
             CARD_ART_RATIO = 1.37f;
             updateAreaSizes(ratio, ratio);
             drawAdvCardImage(g, state, text, advState, advText, width, height, art);
         } else {
             boolean needTranslation = !card.isToken() || !(card.getCloneOrigin() == null);
             final CardStateView state = card.getState(altState);
-            final String text = card.getText(state, needTranslation ? CardTranslation.getTranslationTexts(state.getName(), "") : null);
+            final String text = card.getText(state, needTranslation ? CardTranslation.getTranslationTexts(state) : null);
             CARD_ART_RATIO = 1.37f;
             if (art != null && Math.abs((float)art.getWidth() / (float)art.getHeight() - CARD_ART_RATIO) > 0.1f) {
                 CARD_ART_RATIO = (float)art.getWidth() / (float)art.getHeight();
@@ -698,7 +698,8 @@ public class FCardImageRenderer {
             }
         } else {
             fillColorBackground(g, colors, x, y, w, h);
-            SkinIcon icon = FSkin.getIcon(FSkinProp.ICO_LOGO);
+            //Card Art Logo
+            SkinIcon icon = FSkin.getIcon(FSkinProp.ICO_CARDART);
             float artWidth = (float)icon.getSizeForPaint(g).getWidth();
             float artHeight = (float)icon.getSizeForPaint(g).getHeight();
             if (artWidth / artHeight >= (float)w / (float)h) {
@@ -748,8 +749,11 @@ public class FCardImageRenderer {
         //draw type
         x += padding;
         w -= padding;
-        String typeLine = CardDetailUtil.formatCardType(state, true).replace(" - ", " — ");
-        drawVerticallyCenteredString(g, typeLine, new Rectangle(x, y, w, h), TYPE_FONT, TYPE_SIZE);
+        // check for shared type line
+        if (!state.getType().hasStringType("Room") || state.getState() != CardStateName.RightSplit) {
+            String typeLine = CardDetailUtil.formatCardType(state, true).replace(" - ", " — ");
+            drawVerticallyCenteredString(g, typeLine, new Rectangle(x, y, w, h), TYPE_FONT, TYPE_SIZE);
+        }
     }
 
     /**

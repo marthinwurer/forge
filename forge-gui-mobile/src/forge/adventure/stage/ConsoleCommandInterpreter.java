@@ -3,6 +3,7 @@ package forge.adventure.stage;
 
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.utils.Array;
+import forge.Forge;
 import forge.StaticData;
 import forge.adventure.character.PlayerSprite;
 import forge.adventure.data.BiomeData;
@@ -13,11 +14,14 @@ import forge.adventure.pointofintrest.PointOfInterest;
 import forge.adventure.util.Current;
 import forge.adventure.util.Paths;
 import forge.adventure.world.WorldSave;
+import forge.card.CardEdition;
 import forge.card.ColorSet;
 import forge.deck.Deck;
 import forge.deck.DeckProxy;
 import forge.game.GameType;
+import forge.gui.FThreads;
 import forge.item.PaperCard;
+import forge.screens.CoverScreen;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -56,7 +60,7 @@ public class ConsoleCommandInterpreter {
     }
 
     private String[] splitOnSpace(String text) {
-        List<String> matchList = new ArrayList<String>();
+        List<String> matchList = new ArrayList<>();
         Pattern regex = Pattern.compile("[^\\s\"']+|\"([^\"]*)\"|'([^']*)'");
         Matcher regexMatcher = regex.matcher(text);
         while (regexMatcher.find()) {
@@ -135,8 +139,14 @@ public class ConsoleCommandInterpreter {
             PointOfInterest poi = Current.world().findPointsOfInterest(s[0]);
             if (poi == null)
                 return "PoI " + s[0] + " not found";
-            WorldStage.getInstance().setPosition(poi.getPosition());
-            WorldStage.getInstance().player.playEffect(Paths.EFFECT_TELEPORT, 10);
+
+            Forge.advFreezePlayerControls = true;
+            FThreads.invokeInEdtNowOrLater(() -> Forge.setTransitionScreen(new CoverScreen(() -> {
+                Forge.advFreezePlayerControls = false;
+                WorldStage.getInstance().setPosition(new Vector2(poi.getPosition().x - 16f, poi.getPosition().y + 16f));
+                WorldStage.getInstance().loadPOI(poi);
+                Forge.clearTransitionScreen();
+            }, Forge.takeScreenshot())));
             return "Teleported to " + s[0] + "(" + poi.getPosition() + ")";
         });
         registerCommand(new String[]{"spawn", "enemy"}, s -> {
@@ -193,7 +203,7 @@ public class ConsoleCommandInterpreter {
         });
         registerCommand(new String[]{"leave"}, s -> {
             if (!MapStage.getInstance().isInMap()) return "not on a map";
-            MapStage.getInstance().exitDungeon();
+            MapStage.getInstance().exitDungeon(false);
             return "Got out";
         });
         registerCommand(new String[]{"debug", "collision"}, s -> {
@@ -201,25 +211,64 @@ public class ConsoleCommandInterpreter {
             return "Got out";
         });
         registerCommand(new String[]{"give", "card"}, s -> {
-            //TODO: Specify optional amount.
             if (s.length < 1) return "Command needs 1 parameter: Card name.";
-            PaperCard card = StaticData.instance().getCommonCards().getCard(s[0]);
+            PaperCard card = StaticData.instance().fetchCard(s[0]);
             if (card == null) return "Cannot find card: " + s[0];
+            if(s.length >= 2) {
+                try {
+                    int amount = Integer.parseInt(s[1]);
+                    Current.player().addCard(card, amount);
+                    return String.format("Added %d cards: %s", amount, card.getName());
+                }
+                catch(NumberFormatException ignored) {}
+            }
             Current.player().addCard(card);
-            return "Added card: " + s[0];
+            return "Added card: " + card.getName();
         });
         registerCommand(new String[]{"give", "nosell", "card"}, s -> {
-            //TODO: Specify optional amount.
             if (s.length < 1) return "Command needs 1 parameter: Card name.";
-            PaperCard card = StaticData.instance().getCommonCards().getCard(s[0]);
+            PaperCard card = StaticData.instance().fetchCard(s[0]);
             if (card == null) return "Cannot find card: " + s[0];
+            if(s.length >= 2) {
+                try {
+                    int amount = Integer.parseInt(s[1]);
+                    Current.player().addCard(card.getNoSellVersion(), amount);
+                    return String.format("Added %d cards: %s", amount, card.getName());
+                }
+                catch(NumberFormatException ignored) {}
+            }
+            Current.player().addCard(card.getNoSellVersion());
+            return "Added card: " + card.getName();
+        });
+        registerCommand(new String[]{"give", "print"}, s -> {
+            if (s.length < 2) return "Command needs 2 parameters: Set code, collector number.";
+            CardEdition edition = StaticData.instance().getCardEdition(s[0]);
+            if (edition == null) return "Cannot find edition: " + s[0];
+            CardEdition.EditionEntry cis = edition.getCardFromCollectorNumber(s[1]);
+            if (cis == null) return String.format("Set '%s' does not have a card with collector number '%s'.", edition.getName(), s[1]);
+            PaperCard card = StaticData.instance().fetchCard(cis.name(), edition.getCode(), cis.collectorNumber());
+            if(card == null) {
+                //Found in the set, not supported.
+                return String.format("Failed to fetch (%s, %s, %s) - Not currently supported.", cis.name(), edition.getCode(), cis.collectorNumber());
+            }
+            if(s.length >= 3) {
+                try {
+                    int amount = Integer.parseInt(s[2]);
+                    Current.player().addCard(card, amount);
+                    return String.format("Added %d cards: %s", amount, card.getName());
+                }
+                catch(NumberFormatException ignored) {}
+            }
             Current.player().addCard(card);
-            Current.player().noSellCards.add(card);
-            return "Added card: " + s[0];
+            return "Added card: "+ card.getName();
         });
         registerCommand(new String[]{"give", "item"}, s -> {
             if (s.length < 1) return "Command needs 1 parameter: Item name.";
-            if (Current.player().addItem(s[0])) return "Added item " + s[0] + ".";
+            if (Current.player().addItem(s[0])) {
+                if (s[0].contains("Key"))
+                    GameHUD.getInstance().updateKeys();
+                return "Added item " + s[0] + ".";
+            }
             return "Cannot find item " + s[0];
         });
         registerCommand(new String[]{"fullHeal"}, s -> {
@@ -254,7 +303,7 @@ public class ConsoleCommandInterpreter {
         });
         registerCommand(new String[]{"dumpEnemyDeckColors"}, s -> {
             for (EnemyData E : new Array.ArrayIterator<>(WorldData.getAllEnemies())) {
-                Deck D = E.generateDeck(Current.player().isFantasyMode(), Current.player().isUsingCustomDeck() || Current.player().getDifficulty().name.equalsIgnoreCase("Hard"));
+                Deck D = E.generateDeck(Current.player().isFantasyMode(), Current.player().isUsingCustomDeck() || Current.player().isHardorInsaneDifficulty());
                 DeckProxy DP = new DeckProxy(D, "Constructed", GameType.Constructed, null);
                 ColorSet colorSet = DP.getColor();
                 System.out.printf("%s: Colors: %s (%s%s%s%s%s%s)\n", D.getName(), DP.getColor(),
@@ -270,7 +319,7 @@ public class ConsoleCommandInterpreter {
         });
         registerCommand(new String[]{"dumpEnemyDeckList"}, s -> {
             for (EnemyData E : new Array.ArrayIterator<>(WorldData.getAllEnemies())) {
-                Deck D = E.generateDeck(Current.player().isFantasyMode(), Current.player().isUsingCustomDeck() || Current.player().getDifficulty().name.equalsIgnoreCase("Hard"));
+                Deck D = E.generateDeck(Current.player().isFantasyMode(), Current.player().isUsingCustomDeck() || Current.player().isHardorInsaneDifficulty());
                 DeckProxy DP = new DeckProxy(D, "Constructed", GameType.Constructed, null);
                 System.out.printf("Deck: %s\n%s\n\n", D.getName(), DP.getDeck().getMain().toCardList("\n")
                 );
@@ -279,7 +328,7 @@ public class ConsoleCommandInterpreter {
         });
         registerCommand(new String[]{"dumpEnemyColorIdentity"}, s -> {
             for (EnemyData E : new Array.ArrayIterator<>(WorldData.getAllEnemies())) {
-                Deck D = E.generateDeck(Current.player().isFantasyMode(), Current.player().isUsingCustomDeck() || Current.player().getDifficulty().name.equalsIgnoreCase("Hard"));
+                Deck D = E.generateDeck(Current.player().isFantasyMode(), Current.player().isUsingCustomDeck() || Current.player().isHardorInsaneDifficulty());
                 DeckProxy DP = new DeckProxy(D, "Constructed", GameType.Constructed, null);
                 System.out.printf("%s Colors: %s | Deck Colors: %s (%s)%s\n", E.name, E.colors, DP.getColorIdentity().toEnumSet().toString(), DP.getName()
                 , E.boss ? " - BOSS" : "");

@@ -17,14 +17,12 @@
  */
 package forge.game.spellability;
 
-import java.util.List;
 import java.util.Map;
 
 import forge.game.card.CardCopyService;
 import org.apache.commons.lang3.ObjectUtils;
 
 import forge.card.CardStateName;
-import forge.card.mana.ManaCost;
 import forge.game.Game;
 import forge.game.ability.AbilityKey;
 import forge.game.card.Card;
@@ -32,8 +30,7 @@ import forge.game.card.CardFactory;
 import forge.game.cost.Cost;
 import forge.game.cost.CostPayment;
 import forge.game.player.Player;
-import forge.game.replacement.ReplacementEffect;
-import forge.game.replacement.ReplacementLayer;
+import forge.game.player.PlayerController.FullControlFlag;
 import forge.game.replacement.ReplacementType;
 import forge.game.staticability.StaticAbilityCantBeCast;
 import forge.game.zone.ZoneType;
@@ -74,6 +71,11 @@ public abstract class Spell extends SpellAbility implements java.io.Serializable
             return false;
         }
 
+        // CR 118.6 cost is unpayable
+        if (getPayCosts().hasManaCost() && getPayCosts().getCostMana().getMana().isNoCost()) {
+            return false;
+        }
+
         Player activator = this.getActivatingPlayer();
         if (activator == null) {
             activator = card.getController();
@@ -86,9 +88,6 @@ public abstract class Spell extends SpellAbility implements java.io.Serializable
         if (game.getStack().isSplitSecondOnStack()) {
             return false;
         }
-
-        // Save the original cost and the face down info for a later check since the LKI copy will overwrite them
-        ManaCost origCost = card.getState(card.isFaceDown() ? CardStateName.Original : card.getCurrentStateName()).getManaCost();
 
         // do performanceMode only for cases where the activator is different than controller
         if (!Spell.performanceMode && !card.getController().equals(activator)) {
@@ -103,14 +102,8 @@ public abstract class Spell extends SpellAbility implements java.io.Serializable
             return false;
         }
 
-        // for uncastables like lotus bloom, check if manaCost is blank (except for morph spells)
-        // but ignore if it comes from PlayEffect
-        if (!isCastFaceDown() && !isCastFromPlayEffect()
-                && isBasicSpell() && origCost.isNoCost()) {
-            return false;
-        }
-
-        if (!CostPayment.canPayAdditionalCosts(this.getPayCosts(), this, false)) {
+        if (!activator.getController().isFullControl(FullControlFlag.AllowPaymentStartWithMissingResources) &&
+                !CostPayment.canPayAdditionalCosts(this.getPayCosts(), this, false)) {
             return false;
         }
 
@@ -153,6 +146,7 @@ public abstract class Spell extends SpellAbility implements java.io.Serializable
         this.castFaceDown = faceDown;
     }
 
+    @Override
     public Card getAlternateHost(Card source) {
         boolean lkicheck = false;
 
@@ -199,7 +193,7 @@ public abstract class Spell extends SpellAbility implements java.io.Serializable
             source.setLKICMC(-1);
             source.setLKICMC(source.getCMC());
             lkicheck = true;
-        } else if (hasParam("Prototype")) {
+        } else if (hasParam("Prototype") && source.getPrototypeTimestamp() == -1) {
             if (!source.isLKI()) {
                 source = CardCopyService.getLKICopy(source);
             }
@@ -215,7 +209,6 @@ public abstract class Spell extends SpellAbility implements java.io.Serializable
         final Map<AbilityKey, Object> repParams = AbilityKey.mapFromAffected(getHostCard());
         repParams.put(AbilityKey.SpellAbility, this);
         repParams.put(AbilityKey.Cause, sa);
-        List<ReplacementEffect> list = getHostCard().getGame().getReplacementHandler().getReplacementList(ReplacementType.Counter, repParams, ReplacementLayer.CantHappen);
-        return list.isEmpty();
+        return !getHostCard().getGame().getReplacementHandler().cantHappenCheck(ReplacementType.Counter, repParams);
     }
 }

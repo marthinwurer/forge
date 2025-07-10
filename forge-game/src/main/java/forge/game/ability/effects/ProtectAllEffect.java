@@ -15,6 +15,7 @@ import forge.game.ability.SpellAbilityEffect;
 import forge.game.card.Card;
 import forge.game.card.CardCollectionView;
 import forge.game.card.CardLists;
+import forge.game.event.GameEventCardStatsChanged;
 import forge.game.player.Player;
 import forge.game.spellability.SpellAbility;
 import forge.game.zone.ZoneType;
@@ -86,7 +87,8 @@ public class ProtectAllEffect extends SpellAbilityEffect {
             CardCollectionView list = CardLists.getValidCards(game.getCardsIn(ZoneType.Battlefield), valid, sa.getActivatingPlayer(), host, sa);
 
             for (final Card tgtC : list) {
-                tgtC.addChangedCardKeywords(gainsKWList, null, false, timestamp, 0, true);
+                tgtC.addChangedCardKeywords(gainsKWList, null, false, timestamp, null, true);
+                game.fireEvent(new GameEventCardStatsChanged(tgtC));
 
                 if (!"Permanent".equals(sa.getParam("Duration"))) {
                     // If not Permanent, remove protection at EOT
@@ -97,6 +99,7 @@ public class ProtectAllEffect extends SpellAbilityEffect {
                         public void run() {
                             if (tgtC.isInPlay()) {
                                 tgtC.removeChangedCardKeywords(timestamp, 0, true);
+                                game.fireEvent(new GameEventCardStatsChanged(tgtC));
                             }
                         }
                     };

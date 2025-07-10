@@ -33,6 +33,7 @@ import forge.game.cost.Cost;
 import forge.game.keyword.Keyword;
 import forge.game.keyword.KeywordInterface;
 import forge.game.player.Player;
+import forge.game.replacement.ReplacementEffect;
 import forge.game.replacement.ReplacementHandler;
 import forge.game.spellability.*;
 import forge.game.staticability.StaticAbility;
@@ -43,8 +44,11 @@ import forge.item.IPaperCard;
 import forge.util.CardTranslation;
 import forge.util.TextUtil;
 
-import java.util.*;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
 import java.util.Map.Entry;
+import java.util.stream.Collectors;
 
 /**
  * <p>
@@ -107,7 +111,6 @@ public class CardFactory {
         copy.setCopiedPermanent(original);
 
         copy.setXManaCostPaidByColor(original.getXManaCostPaidByColor());
-        copy.setKickerMagnitude(original.getKickerMagnitude());
         copy.setPromisedGift(original.getPromisedGift());
 
         if (targetSA.isBestow()) {
@@ -208,8 +211,8 @@ public class CardFactory {
                 c.setRarity(cp.getRarity());
                 c.setState(CardStateName.RightSplit, false);
                 c.setImageKey(originalPicture);
-            } else if (c.isAdventureCard()) {
-                c.setState(CardStateName.Adventure, false);
+            } else if (c.hasState(CardStateName.Secondary)) {
+                c.setState(CardStateName.Secondary, false);
                 c.setImageKey(originalPicture);
             } else if (c.canSpecialize()) {
                 c.setState(CardStateName.SpecializeW, false);
@@ -251,20 +254,8 @@ public class CardFactory {
 
             // ******************************************************************
             // ************** Link to different CardFactories *******************
-            if (state == CardStateName.LeftSplit || state == CardStateName.RightSplit) {
-                for (final SpellAbility sa : card.getSpellAbilities()) {
-                    sa.setCardState(card.getState(state));
-                }
+            if (state != CardStateName.Original) {
                 CardFactoryUtil.setupKeywordedAbilities(card);
-                final CardState original = card.getState(CardStateName.Original);
-                original.addNonManaAbilities(card.getCurrentState().getNonManaAbilities());
-                original.addIntrinsicKeywords(card.getCurrentState().getIntrinsicKeywords()); // Copy 'Fuse' to original side
-                original.getSVars().putAll(card.getCurrentState().getSVars()); // Unfortunately need to copy these to (Effect looks for sVars on execute)
-            } else if (state != CardStateName.Original) {
-                CardFactoryUtil.setupKeywordedAbilities(card);
-            }
-            if (state == CardStateName.Adventure) {
-                CardFactoryUtil.setupAdventureAbility(card);
             }
         }
 
@@ -290,6 +281,18 @@ public class CardFactory {
 
         if (card.getType().hasSubtype("Siege")) {
             CardFactoryUtil.setupSiegeAbilities(card);
+        }
+        else if (card.getType().getBattleTypes().isEmpty()) {
+            //Probably a custom card? Check if it already has an RE for designating a protector.
+            if(card.getReplacementEffects().stream().anyMatch((re) -> re.hasParam("BattleProtector")))
+                return;
+            //Battles with no battle type enter protected by their controller.
+            String abProtector = "DB$ ChoosePlayer | Choices$ You | Protect$ True | DontNotify$ True";
+            String reText = "Event$ Moved | ValidCard$ Card.Self | Destination$ Battlefield | ReplacementResult$ Updated"
+                    + " | BattleProtector$ True | Description$ (As this Battle enters, its controller becomes its protector.)";
+            ReplacementEffect re = ReplacementHandler.parseReplacement(reText, card, true);
+            re.setOverridingAbility(AbilityFactory.getAbility(abProtector, card));
+            card.addReplacementEffect(re);
         }
     }
 
@@ -356,13 +359,16 @@ public class CardFactory {
     }
 
     private static void readCardFace(Card c, ICardFace face) {
+        String variantName = null;
         //If it's a functional variant card, switch to that first.
         if(face.hasFunctionalVariants()) {
-            String variantName = c.getPaperCard().getFunctionalVariant();
+            variantName = c.getPaperCard().getFunctionalVariant();
             if (!IPaperCard.NO_FUNCTIONAL_VARIANT.equals(variantName)) {
                 ICardFace variant = face.getFunctionalVariant(variantName);
-                if (variant != null)
+                if (variant != null) {
                     face = variant;
+                    c.getCurrentState().setFunctionalVariantName(variantName);
+                }
                 else
                     System.err.printf("Tried to apply unknown or unsupported variant - Card: \"%s\"; Variant: %s\n", face.getName(), variantName);
             }
@@ -370,7 +376,7 @@ public class CardFactory {
 
         // Build English oracle and translated oracle mapping
         if (c.getId() >= 0) {
-            CardTranslation.buildOracleMapping(face.getName(), face.getOracleText());
+            CardTranslation.buildOracleMapping(face.getName(), face.getOracleText(), variantName);
         }
 
         // Name first so Senty has the Card name
@@ -412,21 +418,6 @@ public class CardFactory {
 
         c.setAttractionLights(face.getAttractionLights());
 
-        // SpellPermanent only for Original State
-        if (c.getCurrentStateName() == CardStateName.Original || c.getCurrentStateName() == CardStateName.Modal || c.getCurrentStateName().toString().startsWith("Specialize")) {
-            // this is the "default" spell for permanents like creatures and artifacts
-            if (c.isPermanent() && !c.isAura() && !c.isLand()) {
-                SpellAbility sa = new SpellPermanent(c);
-
-                // Currently only for Modal, might react different when state is always set
-                //if (c.getCurrentStateName() == CardStateName.Modal) {
-                    sa.setCardState(c.getCurrentState());
-                //}
-                c.addSpellAbility(sa);
-            }
-            // TODO add LandAbility there when refactor MayPlay
-        }
-
         CardFactoryUtil.addAbilityFactoryAbilities(c, face.getAbilities());
     }
 
@@ -444,7 +435,7 @@ public class CardFactory {
             to.setAdditionalAbility(e.getKey(), e.getValue().copy(host, p, lki, keepTextChanges));
         }
         for (Map.Entry<String, List<AbilitySub>> e : from.getAdditionalAbilityLists().entrySet()) {
-            to.setAdditionalAbilityList(e.getKey(), Lists.transform(e.getValue(), input -> (AbilitySub) input.copy(host, p, lki, keepTextChanges)));
+            to.setAdditionalAbilityList(e.getKey(), e.getValue().stream().map(input -> (AbilitySub) input.copy(host, p, lki, keepTextChanges)).collect(Collectors.toList()));
         }
         if (from.getRestrictions() != null) {
             to.setRestrictions((SpellAbilityRestriction) from.getRestrictions().copy());
@@ -455,7 +446,7 @@ public class CardFactory {
 
         // do this after other abilities are copied
         if (p != null) {
-            to.setActivatingPlayer(p, lki);
+            to.setActivatingPlayer(p);
         }
     }
 
@@ -540,14 +531,14 @@ public class CardFactory {
             final CardState ret2 = new CardState(out, CardStateName.Flipped);
             ret2.copyFrom(in.getState(CardStateName.Flipped), false, sa);
             result.put(CardStateName.Flipped, ret2);
-        } else if (in.isAdventureCard()) {
+        } else if (in.hasState(CardStateName.Secondary)) {
             final CardState ret1 = new CardState(out, CardStateName.Original);
             ret1.copyFrom(in.getState(CardStateName.Original), false, sa);
             result.put(CardStateName.Original, ret1);
 
-            final CardState ret2 = new CardState(out, CardStateName.Adventure);
-            ret2.copyFrom(in.getState(CardStateName.Adventure), false, sa);
-            result.put(CardStateName.Adventure, ret2);
+            final CardState ret2 = new CardState(out, CardStateName.Secondary);
+            ret2.copyFrom(in.getState(CardStateName.Secondary), false, sa);
+            result.put(CardStateName.Secondary, ret2);
         } else if (in.isTransformable() && sa instanceof SpellAbility && (
                 ApiType.CopyPermanent.equals(((SpellAbility)sa).getApi()) ||
                 ApiType.CopySpellAbility.equals(((SpellAbility)sa).getApi()) ||
@@ -751,7 +742,7 @@ public class CardFactory {
                         TextUtil.fastReplace(host.getName(), ",", ""),
                         " ", "_").toLowerCase();
                 String set = host.getSetCode().toLowerCase();
-                state.setImageKey(ImageKeys.getTokenKey("offspring_" + name + "_" + set));
+                state.setImageKey(ImageKeys.getTokenKey("offspring_" + name + "|" + set));
             }
 
             
@@ -763,7 +754,7 @@ public class CardFactory {
 
             // remove some characteristic static abilities
             for (StaticAbility sta : state.getStaticAbilities()) {
-                if (!sta.hasParam("CharacteristicDefining")) {
+                if (!sta.isCharacteristicDefining()) {
                     continue;
                 }
 

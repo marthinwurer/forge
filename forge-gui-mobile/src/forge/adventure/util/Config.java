@@ -139,6 +139,30 @@ public class Config {
         return configData;
     }
 
+    public int getBlurDivisor() {
+        int val = 1;
+        try {
+            switch(settingsData.videomode) {
+                case "720p":
+                case "768p":
+                    val = 8;
+                    break;
+                case "900p":
+                case "1080p":
+                    val = 16;
+                    break;
+                case "1440p":
+                case "2160p":
+                    val = 32;
+                    break;
+                default:
+                    break;
+            }
+        } catch (Exception e) {
+            return val;
+        }
+        return val;
+    }
     public String getPrefix() {
         return prefix;
     }
@@ -332,7 +356,7 @@ public class Config {
                 final List<String> lines = FileUtil.readAllLines(new InputStreamReader(fileInputStream, Charset.forName(CardStorageReader.DEFAULT_CHARSET_NAME)), true);
                 CardRules rules = rulesReader.readCard(lines, com.google.common.io.Files.getNameWithoutExtension(cardFile.getName()));
                 rules.setCustom();
-                PaperCard card = new PaperCard(rules, CardEdition.UNKNOWN.getCode(), CardRarity.Special) {
+                PaperCard card = new PaperCard(rules, CardEdition.UNKNOWN_CODE, CardRarity.Special) {
                     @Override
                     public String getImageKey(boolean altState) {
                         return ImageKeys.ADVENTURECARD_PREFIX + getName();

@@ -1,12 +1,11 @@
 package forge.card;
 
+import forge.card.mana.ManaCost;
+import org.apache.commons.lang3.StringUtils;
+
 import java.util.*;
 import java.util.Map.Entry;
 import java.util.stream.Collectors;
-
-import org.apache.commons.lang3.StringUtils;
-
-import forge.card.mana.ManaCost;
 
 //
 // DO NOT AUTOFORMAT / CHECKSTYLE THIS FILE
@@ -156,6 +155,9 @@ final class CardFace implements ICardFace, Cloneable {
             return null;
         return this.functionalVariants.get(variant);
     }
+    @Override public Map<String, ? extends ICardFace> getFunctionalVariants() {
+        return this.functionalVariants;
+    }
     CardFace getOrCreateFunctionalVariant(String variant) {
         if (this.functionalVariants == null) {
             this.functionalVariants = new HashMap<>();
@@ -220,7 +222,7 @@ final class CardFace implements ICardFace, Cloneable {
                 else variant.replacements.addAll(0, this.replacements);
 
                 if(variant.variables == null) variant.variables = this.variables;
-                else variant.variables.putAll(this.variables);
+                else this.variables.forEach((k, v) -> variant.variables.putIfAbsent(k, v));
 
                 if(variant.nonAbilityText == null) variant.nonAbilityText = this.nonAbilityText;
                 if(variant.draftActions == null) variant.draftActions = this.draftActions;

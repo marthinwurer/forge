@@ -9,6 +9,7 @@ import forge.game.ability.AbilityUtils;
 import forge.game.ability.SpellAbilityEffect;
 import forge.game.card.*;
 import forge.game.event.GameEventCardStatsChanged;
+import forge.game.keyword.Keyword;
 import forge.game.player.Player;
 import forge.game.player.PlayerActionConfirmMode;
 import forge.game.trigger.TriggerHandler;
@@ -53,7 +54,6 @@ public class SetStateEffect extends SpellAbilityEffect {
         final Game game = host.getGame();
 
         final boolean remChanged = sa.hasParam("RememberChanged");
-        final boolean hiddenAgenda = sa.hasParam("HiddenAgenda");
         final boolean optional = sa.hasParam("Optional");
         final CardCollection transformedCards = new CardCollection();
 
@@ -96,6 +96,15 @@ public class SetStateEffect extends SpellAbilityEffect {
                 continue;
             }
 
+            if (sa.hasParam("RevealFirst")) {
+                Card lki = CardCopyService.getLKICopy(tgtCard);
+                lki.forceTurnFaceUp();
+                game.getAction().reveal(new CardCollection(lki), lki.getOwner(), true, Localizer.getInstance().getMessage("lblRevealFaceDownCards"));
+                if (sa.hasParam("ValidNewFace") && !lki.isValid(sa.getParam("ValidNewFace").split(","), p, host, sa)) {
+                    continue;
+                }
+            }
+
             // facedown cards that are not Permanent, can't turn faceup there
             if ("TurnFaceUp".equals(mode) && gameCard.isFaceDown() && gameCard.isInPlay()) {
                 if (gameCard.hasMergedCard()) {
@@ -118,7 +127,6 @@ public class SetStateEffect extends SpellAbilityEffect {
                     Card lki = CardCopyService.getLKICopy(gameCard);
                     lki.forceTurnFaceUp();
                     game.getAction().reveal(new CardCollection(lki), lki.getOwner(), true, Localizer.getInstance().getMessage("lblFaceDownCardCantTurnFaceUp"));
-
                     continue;
                 }
             }
@@ -186,14 +194,12 @@ public class SetStateEffect extends SpellAbilityEffect {
                 } else if (sa.isCloakUp()) {
                     String sb = p + " has uncloaked " + gameCard.getName();
                     game.getGameLog().add(GameLogEntryType.STACK_RESOLVE, sb);
-                } else if (hiddenAgenda) {
-                    if (gameCard.hasKeyword("Double agenda")) {
-                        String sb = p + " has revealed " + gameCard.getName() + " with the chosen names: " + gameCard.getNamedCards();
-                        game.getGameLog().add(GameLogEntryType.STACK_RESOLVE, sb);
-                    } else {
-                        String sb = p + " has revealed " + gameCard.getName() + " with the chosen name " + gameCard.getNamedCard();
-                        game.getGameLog().add(GameLogEntryType.STACK_RESOLVE, sb);
-                    }
+                } else if (sa.isKeyword(Keyword.DOUBLE_AGENDA)) {
+                    String sb = p + " has revealed " + gameCard.getName() + " with the chosen names: " + gameCard.getNamedCards();
+                    game.getGameLog().add(GameLogEntryType.STACK_RESOLVE, sb);
+                } else if (sa.isKeyword(Keyword.HIDDEN_AGENDA)) {
+                    String sb = p + " has revealed " + gameCard.getName() + " with the chosen name " + gameCard.getNamedCard();
+                    game.getGameLog().add(GameLogEntryType.STACK_RESOLVE, sb);
                 }
                 game.fireEvent(new GameEventCardStatsChanged(gameCard));
                 if (sa.hasParam("Mega")) { // TODO move Megamorph into an Replacement Effect

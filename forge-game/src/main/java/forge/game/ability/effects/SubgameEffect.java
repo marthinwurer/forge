@@ -71,7 +71,6 @@ public class SubgameEffect extends SpellAbilityEffect {
         }
 
         // Commander
-        List<Card> commanders = Lists.newArrayList();
         final CardCollectionView commandCards = maingamePlayer.getCardsIn(ZoneType.Command);
         for (final Card card : commandCards) {
             if (card.isCommander()) {
@@ -85,14 +84,9 @@ public class SubgameEffect extends SpellAbilityEffect {
                     cmd.setChosenColors(chosenColors);
                     subgame.getAction().notifyOfValue(cmdColorsa, cmd, Localizer.getInstance().getMessage("lblPlayerPickedChosen", player.getName(), Lang.joinHomogenous(chosenColors)), player);
                 }
-                cmd.setCommander(true);
                 com.add(cmd);
-                commanders.add(cmd);
-                com.add(Player.createCommanderEffect(subgame, cmd));
+                player.addCommander(cmd);
             }
-        }
-        if (!commanders.isEmpty()) {
-            player.setCommanders(commanders);
         }
 
         // Conspiracies
@@ -144,6 +138,9 @@ public class SubgameEffect extends SpellAbilityEffect {
             // Attractions
             setCardsInZone(player, ZoneType.AttractionDeck, maingamePlayer.getCardsIn(ZoneType.AttractionDeck), false);
 
+            // Contraptions
+            setCardsInZone(player, ZoneType.ContraptionDeck, maingamePlayer.getCardsIn(ZoneType.ContraptionDeck), false);
+
             // Vanguard and Commanders
             initVariantsZonesSubgame(subgame, maingamePlayer, player);
 
@@ -151,6 +148,7 @@ public class SubgameEffect extends SpellAbilityEffect {
             player.getZone(ZoneType.SchemeDeck).shuffle();
             player.getZone(ZoneType.PlanarDeck).shuffle();
             player.getZone(ZoneType.AttractionDeck).shuffle();
+            player.getZone(ZoneType.ContraptionDeck).shuffle();
         }
     }
 
@@ -254,6 +252,7 @@ public class SubgameEffect extends SpellAbilityEffect {
             player.getZone(ZoneType.SchemeDeck).shuffle();
             player.getZone(ZoneType.PlanarDeck).shuffle();
             player.getZone(ZoneType.AttractionDeck).shuffle();
+            player.getZone(ZoneType.ContraptionDeck).shuffle();
         }
     }
 

@@ -17,9 +17,13 @@
  */
 package forge.game;
 
-import com.google.common.base.Predicate;
-import com.google.common.base.Predicates;
-import com.google.common.collect.*;
+import com.google.common.collect.ArrayListMultimap;
+import com.google.common.collect.HashBasedTable;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+import com.google.common.collect.Multimap;
+import com.google.common.collect.Sets;
+import com.google.common.collect.Table;
 import com.google.common.eventbus.EventBus;
 import forge.GameCommand;
 import forge.card.CardRarity;
@@ -46,14 +50,13 @@ import forge.game.zone.MagicStack;
 import forge.game.zone.Zone;
 import forge.game.zone.ZoneType;
 import forge.trackable.Tracker;
-import forge.util.Aggregates;
-import forge.util.MyRandom;
-import forge.util.Visitor;
+import forge.util.*;
 import forge.util.collect.FCollection;
 import org.apache.commons.lang3.ObjectUtils;
 import org.apache.commons.lang3.tuple.Pair;
 
 import java.util.*;
+import java.util.function.Predicate;
 
 /**
  * Represents the state of a <i>single game</i>, a new instance is created for each game.
@@ -89,6 +92,8 @@ public class Game {
     private final GameLog gameLog = new GameLog();
 
     private final Zone stackZone = new Zone(ZoneType.Stack, this);
+    public int AI_TIMEOUT = 5;
+    public boolean AI_CAN_USE_TIMEOUT = true;
 
     // While these are false here, they're really set by the Match/Preferences
     public boolean EXPERIMENTAL_RESTORE_SNAPSHOT = false;
@@ -113,8 +118,8 @@ public class Game {
     private Map<Player, Card> topLibsCast = Maps.newHashMap();
     private Map<Card, Integer> facedownWhileCasting = Maps.newHashMap();
 
-    private Player monarch;
     private Player initiative;
+    private Player monarch;
     private Player monarchBeginTurn;
     private Player startingPlayer;
 
@@ -257,7 +262,6 @@ public class Game {
         }
         return null;
     }
-
 
     public void addPlayer(int id, Player player) {
         playerCache.put(id, player);
@@ -520,7 +524,7 @@ public class Game {
      * The Direction in which the turn order of this Game currently proceeds.
      */
     public final Direction getTurnOrder() {
-        if (phaseHandler.getPlayerTurn() != null && phaseHandler.getPlayerTurn().getAmountOfKeyword("The turn order is reversed.") % 2 == 1) {
+        if (phaseHandler.getPlayerTurn() != null && phaseHandler.getPlayerTurn().isTurnOrderReversed()) {
             return turnOrder.getOtherDirection();
         }
     	return turnOrder;
@@ -590,7 +594,7 @@ public class Game {
     }
 
     public Zone getZoneOf(final Card card) {
-        return card.getLastKnownZone();
+        return card == null ? null : card.getLastKnownZone();
     }
 
     public synchronized CardCollectionView getCardsIn(final ZoneType zone) {
@@ -633,11 +637,11 @@ public class Game {
     }
 
     public boolean isCardInPlay(final String cardName) {
-        return Iterables.any(getCardsIn(ZoneType.Battlefield), CardPredicates.nameEquals(cardName));
+        return getCardsIn(ZoneType.Battlefield).anyMatch(CardPredicates.nameEquals(cardName));
     }
 
     public boolean isCardInCommand(final String cardName) {
-        return Iterables.any(getCardsIn(ZoneType.Command), CardPredicates.nameEquals(cardName));
+        return getCardsIn(ZoneType.Command).anyMatch(CardPredicates.nameEquals(cardName));
     }
 
     public CardCollectionView getColoredCardsInPlay(final String color) {
@@ -876,17 +880,23 @@ public class Game {
                 // unattach all "Enchant Player"
                 c.removeAttachedTo(p);
                 if (c.getOwner().equals(p)) {
-                    for (Card cc : cards) {
-                        cc.removeImprintedCard(c);
-                        cc.removeEncodedCard(c);
-                        cc.removeRemembered(c);
-                        cc.removeAttachedTo(c);
-                        cc.removeAttachedCard(c);
+                    if (c.getEffectSource() != null && !c.isEmblem()) {
+                        // move effect to another player so they continue to work
+                        c.getZone().remove(c);
+                        getNextPlayerAfter(p).getZone(ZoneType.Command).add(c);
+                    } else {
+                        for (Card cc : cards) {
+                            cc.removeImprintedCard(c);
+                            cc.removeEncodedCard(c);
+                            cc.removeRemembered(c);
+                            cc.removeAttachedTo(c);
+                            cc.removeAttachedCard(c);
+                        }
+                        triggerList.put(c.getZone().getZoneType(), null, c);
+                        getAction().ceaseToExist(c, false);
+                        // CR 603.2f owner of trigger source lost game
+                        getTriggerHandler().clearDelayedTrigger(c);
                     }
-                    triggerList.put(c.getZone().getZoneType(), null, c);
-                    getAction().ceaseToExist(c, false);
-                    // CR 603.2f owner of trigger source lost game
-                    getTriggerHandler().clearDelayedTrigger(c);
                 } else {
                     // return stolen permanents
                     if (c.isInPlay() && (c.getController().equals(p) || c.getZone().getPlayer().equals(p))) {
@@ -897,7 +907,9 @@ public class Game {
                     // return stolen spells
                     if (c.isInZone(ZoneType.Stack)) {
                         SpellAbilityStackInstance si = getStack().getInstanceMatchingSpellAbilityID(c.getCastSA());
-                        si.setActivatingPlayer(c.getController());
+                        if (si != null) {
+                            si.setActivatingPlayer(c.getController());
+                        }
                     }
                     if (c.getController().equals(p) && !(c.isPlane() || c.isPhenomenon())) {
                         getAction().exile(c, null, null);
@@ -947,9 +959,9 @@ public class Game {
             // if the player who lost was the Monarch, someone else will be the monarch
             // TODO need to check rules if it should try the next player if able
             if (p.equals(getPhaseHandler().getPlayerTurn())) {
-                getAction().becomeMonarch(getNextPlayerAfter(p), null);
+                getAction().becomeMonarch(getNextPlayerAfter(p), p.getMonarchSet());
             } else {
-                getAction().becomeMonarch(getPhaseHandler().getPlayerTurn(), null);
+                getAction().becomeMonarch(getPhaseHandler().getPlayerTurn(), p.getMonarchSet());
             }
         }
 
@@ -959,22 +971,22 @@ public class Game {
             // If the player who has the initiative leaves the game on their own turn,
             // or the active player left the game at the same time, the next player in turn order takes the initiative.
             if (p.equals(getPhaseHandler().getPlayerTurn())) {
-                getAction().takeInitiative(getNextPlayerAfter(p), null);
+                getAction().takeInitiative(getNextPlayerAfter(p), p.getInitiativeSet());
             } else {
-                getAction().takeInitiative(getPhaseHandler().getPlayerTurn(), null);
+                getAction().takeInitiative(getPhaseHandler().getPlayerTurn(), p.getInitiativeSet());
             }
         }
 
         // Remove leftover items from
         getStack().removeInstancesControlledBy(p);
 
-        getTriggerHandler().onPlayerLost(p);
-
         ingamePlayers.remove(p);
         lostPlayers.add(p);
 
         final Map<AbilityKey, Object> runParams = AbilityKey.mapFromPlayer(p);
         getTriggerHandler().runTrigger(TriggerType.LosesGame, runParams, false);
+
+        getTriggerHandler().onPlayerLost(p);
     }
 
     /**
@@ -1092,8 +1104,8 @@ public class Game {
 
     private void chooseRandomCardsForAnte(final Player player, final Multimap<Player, Card> anteed) {
         final CardCollectionView lib = player.getCardsIn(ZoneType.Library);
-        Predicate<Card> goodForAnte = Predicates.not(CardPredicates.Presets.BASIC_LANDS);
-        Card ante = Aggregates.random(Iterables.filter(lib, goodForAnte));
+        Predicate<Card> goodForAnte = CardPredicates.BASIC_LANDS.negate();
+        Card ante = Aggregates.random(IterableUtil.filter(lib, goodForAnte));
         if (ante == null) {
             getGameLog().add(GameLogEntryType.ANTE, "Only basic lands found. Will ante one of them");
             ante = Aggregates.random(lib);
@@ -1174,6 +1186,12 @@ public class Game {
         for (Player player : getRegisteredPlayers()) {
             player.onCleanupPhase();
         }
+        for (final Card c : getCardsIncludePhasingIn(ZoneType.Battlefield)) {
+            c.onCleanupPhase(getPhaseHandler().getPlayerTurn());
+        }
+        for (final Card card : getCardsInGame()) {
+            card.resetActivationsPerTurn();
+        }
     }
 
     public void addCounterAddedThisTurn(Player putter, CounterType cType, Card card, Integer value) {
@@ -1190,29 +1208,43 @@ public class Game {
 
     public int getCounterAddedThisTurn(CounterType cType, String validPlayer, String validCard, Card source, Player sourceController, CardTraitBase ctb) {
         int result = 0;
-        if (!countersAddedThisTurn.containsRow(cType)) {
+        Set<CounterType> types = null;
+        if (cType == null) {
+            types = countersAddedThisTurn.rowKeySet();
+        } else if (!countersAddedThisTurn.containsRow(cType)) {
             return result;
+        } else {
+            types = Sets.newHashSet(cType);
         }
-        for (Map.Entry<Player, List<Pair<Card, Integer>>> e : countersAddedThisTurn.row(cType).entrySet()) {
-           if (e.getKey().isValid(validPlayer.split(","), sourceController, source, ctb)) {
-               for (Pair<Card, Integer> p : e.getValue()) {
-                   if (p.getKey().isValid(validCard.split(","), sourceController, source, ctb)) {
-                       result += p.getValue();
-                   }
-               }
-           }
+        for (CounterType type : types) {
+            for (Map.Entry<Player, List<Pair<Card, Integer>>> e : countersAddedThisTurn.row(type).entrySet()) {
+                if (e.getKey().isValid(validPlayer.split(","), sourceController, source, ctb)) {
+                    for (Pair<Card, Integer> p : e.getValue()) {
+                        if (p.getKey().isValid(validCard.split(","), sourceController, source, ctb)) {
+                            result += p.getValue();
+                        }
+                    }
+                }
+            }
         }
         return result;
     }
     public int getCounterAddedThisTurn(CounterType cType, Card card) {
         int result = 0;
-        if (!countersAddedThisTurn.containsRow(cType)) {
+        Set<CounterType> types = null;
+        if (cType == null) {
+            types = countersAddedThisTurn.rowKeySet();
+        } else if (!countersAddedThisTurn.containsRow(cType)) {
             return result;
+        } else {
+            types = Sets.newHashSet(cType);
         }
-        for (List<Pair<Card, Integer>> l : countersAddedThisTurn.row(cType).values()) {
-            for (Pair<Card, Integer> p : l) {
-                if (p.getKey().equalsWithGameTimestamp(card)) {
-                    result += p.getValue();
+        for (CounterType type : types) {
+            for (List<Pair<Card, Integer>> l : countersAddedThisTurn.row(type).values()) {
+                for (Pair<Card, Integer> p : l) {
+                    if (p.getKey().equalsWithGameTimestamp(card)) {
+                        result += p.getValue();
+                    }
                 }
             }
         }
@@ -1347,5 +1379,11 @@ public class Game {
         }
         if (!isNeitherDayNorNight())
             fireEvent(new GameEventDayTimeChanged(isDay()));
+    }
+    public int getAITimeout() {
+        return AI_TIMEOUT;
+    }
+    public boolean canUseTimeout() {
+        return AI_CAN_USE_TIMEOUT;
     }
 }

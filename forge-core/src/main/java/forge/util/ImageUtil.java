@@ -7,7 +7,11 @@ import forge.card.CardRules;
 import forge.card.CardSplitType;
 import forge.item.IPaperCard;
 import forge.item.PaperCard;
+import forge.item.PaperToken;
+import forge.token.TokenDb;
 import org.apache.commons.lang3.StringUtils;
+
+import java.net.URLEncoder;
 
 public class ImageUtil {
     public static float getNearestHQSize(float baseSize, float actualSize) {
@@ -22,33 +26,64 @@ public class ImageUtil {
         }
         if (imageKey.startsWith(ImageKeys.CARD_PREFIX))
             key = imageKey.substring(ImageKeys.CARD_PREFIX.length());
-        else if (imageKey.startsWith(ImageKeys.TOKEN_PREFIX))
-            key = imageKey.substring(ImageKeys.TOKEN_PREFIX.length());
-        else if (imageKey.startsWith(ImageKeys.ICON_PREFIX))
-            key = imageKey.substring(ImageKeys.ICON_PREFIX.length());
-        else if (imageKey.startsWith(ImageKeys.BOOSTER_PREFIX))
-            key = imageKey.substring(ImageKeys.BOOSTER_PREFIX.length());
-        else if (imageKey.startsWith(ImageKeys.FATPACK_PREFIX))
-            key = imageKey.substring(ImageKeys.FATPACK_PREFIX.length());
-        else if (imageKey.startsWith(ImageKeys.BOOSTERBOX_PREFIX))
-            key = imageKey.substring(ImageKeys.BOOSTERBOX_PREFIX.length());
-        else if (imageKey.startsWith(ImageKeys.PRECON_PREFIX))
-            key = imageKey.substring(ImageKeys.PRECON_PREFIX.length());
-        else if (imageKey.startsWith(ImageKeys.TOURNAMENTPACK_PREFIX))
-            key = imageKey.substring(ImageKeys.TOURNAMENTPACK_PREFIX.length());
-        else if (imageKey.startsWith(ImageKeys.ADVENTURECARD_PREFIX))
-            key = imageKey.substring(ImageKeys.ADVENTURECARD_PREFIX.length());
-        else if (imageKey.contains(".full")) {//no prefix found, construct a valid key if imageKey is art imagekey.
-            key = transformKey(imageKey);
-        } else //try anyway...
-            key = imageKey;
+        else
+            return null;
+        if (key.isEmpty())
+            return null;
 
-        PaperCard cp = StaticData.instance().getCommonCards().getCard(key);
-        if (cp == null) {
-            cp = StaticData.instance().getVariantCards().getCard(key);
+        CardDb db = StaticData.instance().getCommonCards();
+        PaperCard cp = null;
+        //db shouldn't be null
+        if (db != null) {
+            cp = db.getCard(key);
+            if (cp == null) {
+                db = StaticData.instance().getVariantCards();
+                if (db != null)
+                    cp = db.getCard(key);
+            }
         }
+        if (cp == null)
+            System.err.println("Can't find PaperCard from key: " + key);
+        // return cp regardless if it's null
         return cp;
     }
+
+    public static PaperToken getPaperTokenFromImageKey(final String imageKey) {
+        String key;
+        if (imageKey == null ||
+            !imageKey.startsWith(ImageKeys.TOKEN_PREFIX)) {
+            return null;
+        }
+
+        key = imageKey.substring(ImageKeys.TOKEN_PREFIX.length());
+            
+        if (key.isEmpty()) {
+            return null;
+        }
+
+        TokenDb db = StaticData.instance().getAllTokens();
+        if (db == null) {
+            return null;
+        }
+        
+        String[] split = key.split("\\|");
+        if (!db.containsRule(split[0])) {
+            return null;
+        }
+        
+        PaperToken pt = switch (split.length) {
+            case 1 -> db.getToken(split[0]);
+            case 2, 3 -> db.getToken(split[0], split[1]);
+            default -> db.getToken(split[0], split[1], Integer.parseInt(split[3]));
+        };
+
+        if (pt == null) {
+            System.err.println("Can't find PaperToken from key: " + key);
+        }
+            
+        return pt;
+    }
+
     public static String transformKey(String imageKey) {
         String key;
         String edition= imageKey.substring(0, imageKey.indexOf("/"));
@@ -106,7 +141,7 @@ public class ImageUtil {
 
         if (includeSet) {
             String editionAliased = isDownloadUrl ? StaticData.instance().getEditions().getCode2ByCode(edition) : ImageKeys.getSetFolder(edition);
-            if (editionAliased == "") //FIXME: Custom Cards Workaround
+            if (editionAliased.isEmpty()) //FIXME: Custom Cards Workaround
                 editionAliased = edition;
             return TextUtil.concatNoSpace(editionAliased, "/", fname);
         } else {
@@ -170,7 +205,7 @@ public class ImageUtil {
 
     public static String getScryfallDownloadUrl(PaperCard cp, String face, String setCode, String langCode, boolean useArtCrop, boolean hyphenateAlchemy){
         String editionCode;
-        if ((setCode != null) && (setCode.length() > 0))
+        if (setCode != null && !setCode.isEmpty())
             editionCode = setCode;
         else
             editionCode = cp.getEdition().toLowerCase();
@@ -198,8 +233,39 @@ public class ImageUtil {
         String faceParam = "";
         if (cp.getRules().getOtherPart() != null) {
             faceParam = (face.equals("back") ? "&face=back" : "&face=front");
+        } else if (cp.getRules().getSplitType() == CardSplitType.Meld
+                    && !cardCollectorNumber.endsWith("a")
+                    && !cardCollectorNumber.endsWith("b")) {
+
+                // Only the bottom half of a meld card shares a collector number.
+                // Hanweir Garrison EMN already has a appended.
+                // Exception: The front facing card doesn't use a in FIN
+                if (face.equals("back")) {
+                    cardCollectorNumber += "b";
+                } else if (!editionCode.equals("fin")) {
+                    cardCollectorNumber += "a";
+                }
         }
-        return String.format("%s/%s/%s?format=image&version=%s%s", editionCode, cardCollectorNumber,
+
+        String cardCollectorNumberEncoded;
+        try {
+            cardCollectorNumberEncoded = URLEncoder.encode(cardCollectorNumber, "UTF-8");
+        } catch (Exception e) {
+            // Unlikely, for the possibility that "UTF-8" is not supported.
+            System.err.println("UTF-8 encoding not supported on this device.");
+            cardCollectorNumberEncoded = cardCollectorNumber;
+        }
+
+        return String.format("%s/%s/%s?format=image&version=%s%s", editionCode, cardCollectorNumberEncoded,
+                langCode, versionParam, faceParam);
+    }
+
+    public static String getScryfallTokenDownloadUrl(String collectorNumber, String setCode, String langCode, String faceParam) {
+        String versionParam = "normal";
+        if (!faceParam.isEmpty()) {
+            faceParam = (faceParam.equals("back") ? "&face=back" : "&face=front");
+        }
+        return String.format("%s/%s/%s?format=image&version=%s%s", setCode, collectorNumber,
                 langCode, versionParam, faceParam);
     }
 

@@ -23,6 +23,7 @@ public class ItemData {
 
     public boolean usableOnWorldMap;
     public boolean usableInPoi;
+    public boolean isCracked;
     public String commandOnUse;
     public int shardsNeeded;
     public DialogData dialogOnUse;
@@ -85,6 +86,10 @@ public class ItemData {
         if(shardsNeeded != 0)
             result +=  shardsNeeded+" [+Shards]";
         return result;
+    }
+
+    public String getName() {
+        return name;
     }
 
 }

@@ -27,6 +27,7 @@ import com.github.tommyettinger.textra.TypingLabel;
 import forge.Forge;
 import forge.adventure.character.*;
 import forge.adventure.data.*;
+import forge.adventure.player.AdventurePlayer;
 import forge.adventure.pointofintrest.PointOfInterestChanges;
 import forge.adventure.scene.*;
 import forge.adventure.util.*;
@@ -60,6 +61,7 @@ public class MapStage extends GameStage {
     private EnemySprite currentMob;
     Queue<Vector2> positions = new LinkedList<>();
     private boolean isLoadingMatch = false;
+    private boolean isPlayerLeavingDungeon = false;
     //private HashMap<String, Byte> mapFlags = new HashMap<>(); //Stores local map flags. These aren't available outside this map.
 
 
@@ -604,7 +606,7 @@ public class MapStage extends GameStage {
                         }));
                         break;
                     case "exit":
-                        addMapActor(obj, new OnCollide(MapStage.this::exitDungeon));
+                        addMapActor(obj, new OnCollide(() -> MapStage.this.exitDungeon(false)));
                         break;
                     case "dialog":
                         if (obj instanceof TiledMapTileMapObject) {
@@ -748,14 +750,17 @@ public class MapStage extends GameStage {
         }
     }
 
-    public boolean exitDungeon() {
-        WorldSave.getCurrentSave().autoSave();
+    public boolean exitDungeon(boolean defeated) {
         AdventureQuestController.instance().updateQuestsLeave();
         clearIsInMap();
         AdventureQuestController.instance().showQuestDialogs(this);
         isLoadingMatch = false;
         effect = null; //Reset dungeon effects.
+        if (defeated)
+            WorldStage.getInstance().resetPlayerLocation();
         Forge.switchScene(GameScene.instance());
+        isPlayerLeavingDungeon = false;
+        dialogOnlyInput = false;
         return true;
     }
 
@@ -798,18 +803,18 @@ public class MapStage extends GameStage {
                 AdventureQuestController.instance().updateQuestsLose(currentMob);
                 AdventureQuestController.instance().showQuestDialogs(MapStage.this);
                 boolean defeated = Current.player().defeated();
-                if (canFailDungeon && defeated) {
-                    //If hardcore mode is added, check and redirect to game over screen here
-                    dungeonFailedDialog();
-                    exitDungeon();
-                }
+                //If hardcore mode is added, check and redirect to game over screen here
+                if (canFailDungeon && !defeated)
+                    dungeonFailedDialog(true);
+                else
+                    exitDungeon(defeated);
                 MapStage.this.stop();
                 currentMob = null;
             });
         }
     }
 
-    private void dungeonFailedDialog() {
+    private void dungeonFailedDialog(boolean exit) {
         dialog.getButtonTable().clear();
         dialog.getContentTable().clear();
         dialog.clearListeners();
@@ -828,7 +833,8 @@ public class MapStage extends GameStage {
             public void clicked(InputEvent event, float x, float y) {
                 L.skipToTheEnd();
                 super.clicked(event, x, y);
-                //exitDungeon();
+                if (exit)
+                    exitDungeon(false);
             }
         });
         dialog.getButtonTable().add(ok).width(240f);
@@ -931,8 +937,9 @@ public class MapStage extends GameStage {
 
     @Override
     protected void onActing(float delta) {
-        if (isPaused() || isDialogOnlyInput())
+        if (isPaused() || isDialogOnlyInput() || Forge.advFreezePlayerControls || isPlayerLeavingDungeon)
             return;
+
         Iterator<EnemySprite> it = enemies.iterator();
 
         if (freezeAllEnemyBehaviors) {
@@ -959,10 +966,11 @@ public class MapStage extends GameStage {
                 } else {
                     Vector2 destination = mob.getTargetVector(player, verticesNearPlayer, delta);
 
-                    if (destination.epsilonEquals(mob.pos()) && !mob.aggro) {
+                    if (mob.isFrozen() || (destination.epsilonEquals(mob.pos()) && !mob.aggro)) {
                         mob.setAnimation(CharacterSprite.AnimationTypes.Idle);
                         continue;
                     }
+
                     if (destination.equals(mob.targetVector) && mob.getNavPath() != null)
                         navPath = mob.getNavPath();
 
@@ -1025,18 +1033,40 @@ public class MapStage extends GameStage {
                     Gdx.input.vibrate(50);
                     if (Controllers.getCurrent() != null && Controllers.getCurrent().canVibrate())
                         Controllers.getCurrent().startVibration(100, 1);
-                    startPause(0.1f, () -> { //Switch to item pickup scene.
-                        RewardSprite RS = (RewardSprite) actor;
-                        RewardScene.instance().loadRewards(RS.getRewards(), RewardScene.Type.Loot, null);
-                        RS.remove();
-                        actors.removeValue(RS, true);
-                        changes.deleteObject(RS.getId());
-                        Forge.switchScene(RewardScene.instance());
-                    });
+                    RewardSprite RS = (RewardSprite) actor;
+                    Array<Reward> rewards = RS.getRewards();
+
+                    if (rewards.size == 1) {
+                        Reward reward = rewards.get(0);
+                        switch (reward.getType()) {
+                            case Life:
+                            case Shards:
+                            case Gold:
+                                String message = Forge.getLocalizer().getMessageorUseDefault("lbl" + reward.getType().name(), reward.getType().name());
+                                AdventurePlayer.current().addStatusMessage(reward.getType().name(), message, reward.getCount(), actor.getX(), actor.getY() + player.getHeight());
+                                AdventurePlayer.current().addReward(reward);
+                                break;
+                            default:
+                                showRewardScene(rewards);
+                                break;
+                        }
+                    } else {
+                        showRewardScene(rewards);
+                    }
+                    RS.remove();
+                    actors.removeValue(RS, true);
+                    changes.deleteObject(RS.getId());
                     break;
                 }
             }
         }
+    }
+
+    private void showRewardScene(Array<Reward> rewards) {
+        startPause(0.1f, () -> {
+            RewardScene.instance().loadRewards(rewards, RewardScene.Type.Loot, null);
+            Forge.switchScene(RewardScene.instance());
+        });
     }
 
     boolean started = false;
@@ -1052,7 +1082,7 @@ public class MapStage extends GameStage {
         int duration = mob.getData().boss ? 400 : 200;
         if (Controllers.getCurrent() != null && Controllers.getCurrent().canVibrate())
             Controllers.getCurrent().startVibration(duration, 1);
-        Forge.restrictAdvMenus = true;
+        Forge.advFreezePlayerControls = true;
         player.clearCollisionHeight();
         startPause(0.8f, () -> {
             if (started)
@@ -1084,6 +1114,10 @@ public class MapStage extends GameStage {
         return isInMap;
     }
 
+    public void onBeginLeavingDungeon() {
+        isPlayerLeavingDungeon = true;
+    }
+
     @Override
     public void showDialog() {
         if (dialogStage == null){
@@ -1098,8 +1132,10 @@ public class MapStage extends GameStage {
         dialog.show(dialogStage, Actions.show());
         dialog.setPosition((dialogStage.getWidth() - dialog.getWidth()) / 2, (dialogStage.getHeight() - dialog.getHeight()) / 2);
         dialogOnlyInput = true;
-        if (Forge.hasGamepad() && !dialogButtonMap.isEmpty())
+
+        if (Forge.hasExternalInput() && !dialogButtonMap.isEmpty()) {
             dialogStage.setKeyboardFocus(dialogButtonMap.first());
+        }
     }
 
 

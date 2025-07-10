@@ -12,10 +12,12 @@ import forge.game.card.Card;
  */
 public enum ReplacementType {
     AddCounter(ReplaceAddCounter.class),
+    AssembleContraption(ReplaceAssembleContraption.class),
     AssignDealDamage(ReplaceAssignDealDamage.class),
     Attached(ReplaceAttached.class),
     BeginPhase(ReplaceBeginPhase.class),
     BeginTurn(ReplaceBeginTurn.class),
+    Cascade(ReplaceCascade.class),
     Counter(ReplaceCounter.class),
     CopySpell(ReplaceCopySpell.class),
     CreateToken(ReplaceToken.class),
@@ -28,6 +30,7 @@ public enum ReplacementType {
     Explore(ReplaceExplore.class),
     GainLife(ReplaceGainLife.class),
     GameLoss(ReplaceGameLoss.class),
+    GameWin(ReplaceGameWin.class),
     Learn(ReplaceLearn.class),
     LifeReduced(ReplaceLifeReduced.class),
     LoseMana(ReplaceLoseMana.class),
@@ -43,7 +46,6 @@ public enum ReplacementType {
     RollPlanarDice(ReplaceRollPlanarDice.class),
     Scry(ReplaceScry.class),
     SetInMotion(ReplaceSetInMotion.class),
-    Surveil(ReplaceSurveil.class),
     Tap(ReplaceTap.class),
     Transform(ReplaceTransform.class),
     TurnFaceUp(ReplaceTurnFaceUp.class),
