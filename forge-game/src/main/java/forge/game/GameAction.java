@@ -519,6 +519,7 @@ public class GameAction {
                 }
                 card.setZone(zoneTo);
             }
+            copied.clearMergedCards();
         } else {
             storeChangesZoneAll(copied, zoneFrom, zoneTo, params);
             // "enter the battlefield as a copy" - apply code here
@@ -548,20 +549,20 @@ public class GameAction {
 
         copied.updateStateForView();
 
+        // we don't want always trigger before counters are placed
+        game.getTriggerHandler().suppressMode(TriggerType.Always);
+        // Need to apply any static effects to produce correct triggers
+        checkStaticAbilities();
+
         // needed for counters + ascend
         if (!suppress && toBattlefield) {
             game.getTriggerHandler().registerActiveTrigger(copied, false);
         }
 
-        if (!table.isEmpty()) {
-            // we don't want always trigger before counters are placed
-            game.getTriggerHandler().suppressMode(TriggerType.Always);
-            // Need to apply any static effects to produce correct triggers
-            checkStaticAbilities();
-            // do ETB counters after zone add
-            table.replaceCounterEffect(game, null, true, true, params);
-            game.getTriggerHandler().clearSuppression(TriggerType.Always);
-        }
+        // do ETB counters after zone add
+        table.replaceCounterEffect(game, null, true, true, params);
+
+        game.getTriggerHandler().clearSuppression(TriggerType.Always);
 
         // update static abilities after etb counters have been placed
         checkStaticAbilities();
@@ -645,7 +646,8 @@ public class GameAction {
                     // Ask controller if it wants to be on top or bottom of other meld.
                     unmeldPosition++;
                 }
-                changeZone(null, zoneTo, unmeld, position, cause, params);
+                unmeld = changeZone(null, zoneTo, unmeld, position, cause, params);
+                storeChangesZoneAll(unmeld, zoneFrom, zoneTo, params);
             }
         } else if (toBattlefield) {
             for (Player p : game.getPlayers()) {
@@ -2790,16 +2792,11 @@ public class GameAction {
             return false;
         }
 
-        SpellAbility aura = new SpellAbility.EmptySa(ApiType.Attach, source);
-        if (source.hasSVar("AttachAITgts")) {
-            aura.putParam("AITgts", source.getSVar("AttachAITgts"));
+        SpellAbility aura = source.getCurrentState().getAuraSpell();
+        if (aura == null) {
+            return false;
         }
-        if (source.hasSVar("AttachAILogic")) {
-            aura.putParam("AILogic", source.getSVar("AttachAILogic"));
-        }
-        if (source.hasSVar("AttachAIValid")) {
-            aura.putParam("AIValid", source.getSVar("AttachAIValid"));
-        }
+        aura.setActivatingPlayer(source.getController());
 
         Set<ZoneType> zones = EnumSet.noneOf(ZoneType.class);
         boolean canTargetPlayer = false;

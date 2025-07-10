@@ -658,12 +658,12 @@ public class AbilityUtils {
                 val = playerXCount(getDefinedPlayers(card, key, sa), calcX[1], card, ability);
             }
             else if (calcX[0].startsWith("TriggeredPlayer") || calcX[0].startsWith("TriggeredTarget")
-                    || calcX[0].startsWith("TriggeredDefendingPlayer")) {
+                    || calcX[0].startsWith("TriggeredDefendingPlayer") || calcX[0].startsWith("TriggeredActivator")) {
                 final SpellAbility root = sa.getRootAbility();
                 Object o = root.getTriggeringObject(AbilityKey.fromString(calcX[0].substring(9)));
                 val = o instanceof Player ? playerXProperty((Player) o, calcX[1], card, ability) : 0;
             }
-            else if (calcX[0].equals("TriggeredSpellAbility") || calcX[0].equals("TriggeredStackInstance") || calcX[0].equals("SpellTargeted")) {
+            else if (calcX[0].equals("TriggeredSpellAbility") || calcX[0].equals("SpellTargeted")) {
                 final SpellAbility sat = Iterables.getFirst(getDefinedSpellAbilities(card, calcX[0], sa), null);
                 val = sat == null ? 0 : xCount(sat.getHostCard(), calcX[1], sat);
             }
@@ -1281,8 +1281,6 @@ public class AbilityUtils {
             final Object o = root.getTriggeringObject(AbilityKey.fromString(triggeringType));
             if (o instanceof SpellAbility) {
                 s = (SpellAbility) o;
-            } else if (o instanceof SpellAbilityStackInstance) {
-                s = ((SpellAbilityStackInstance) o).getSpellAbility();
             }
         } else if (defined.endsWith("Targeted") && sa instanceof SpellAbility) {
             final List<TargetChoices> targets = defined.startsWith("This") ? Arrays.asList(((SpellAbility)sa).getTargets()) : ((SpellAbility)sa).getAllTargetChoices();
@@ -1685,11 +1683,11 @@ public class AbilityUtils {
                            return doXMath(x, expr, c, ctb);
                         } else if (TriggerType.SpellCast.equals(t.getMode())) {
                             // Cast Trigger like Hydroid Krasis
-                            SpellAbilityStackInstance castSI = (SpellAbilityStackInstance) root.getTriggeringObject(AbilityKey.StackInstance);
-                            if (castSI == null || castSI.getSpellAbility().getXManaCostPaid() == null) {
+                            SpellAbility castSA = (SpellAbility) root.getTriggeringObject(AbilityKey.SpellAbility);
+                            if (castSA == null || castSA.getXManaCostPaid() == null) {
                                 return doXMath(0, expr, c, ctb);
                             }
-                            return doXMath(castSI.getSpellAbility().getXManaCostPaid(), expr, c, ctb);
+                            return doXMath(castSA.getXManaCostPaid(), expr, c, ctb);
                         } else if (TriggerType.Cycled.equals(t.getMode())) {
                             SpellAbility cycleSA = (SpellAbility) sa.getTriggeringObject(AbilityKey.Cause);
                             if (cycleSA == null || cycleSA.getXManaCostPaid() == null) {
@@ -3400,17 +3398,14 @@ public class AbilityUtils {
             return doXMath(numTied, m, source, ctb);
         }
 
-        final String[] sq;
-        sq = l[0].split("\\.");
-
         // the number of players passed in
-        if (sq[0].equals("Amount")) {
+        if (l[0].equals("Amount")) {
             return doXMath(players.size(), m, source, ctb);
         }
 
-        if (sq[0].startsWith("HasProperty")) {
+        if (l[0].startsWith("HasProperty")) {
             int totPlayer = 0;
-            String property = sq[0].substring(11);
+            String property = l[0].substring(11);
             for (Player p : players) {
                 if (p.hasProperty(property, controller, source, ctb)) {
                     totPlayer++;
@@ -3434,7 +3429,7 @@ public class AbilityUtils {
             return doXMath(totPlayer, m, source, ctb);
         }
 
-        if (sq[0].contains("DamageThisTurn")) {
+        if (l[0].contains("DamageThisTurn")) {
             int totDmg = 0;
             for (Player p : players) {
                 totDmg += p.getAssignedDamage();
@@ -3752,6 +3747,10 @@ public class AbilityUtils {
         }
         if (string.startsWith("GreatestToughness")) {
             return Aggregates.max(paidList, Card::getNetToughness);
+        }
+
+        if (string.startsWith("TapPowerValue")) {
+            return CardLists.getTotalPower(paidList, ctb);
         }
 
         if (string.startsWith("SumToughness")) {

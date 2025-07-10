@@ -101,7 +101,6 @@ public class CardView extends GameEntityView {
         set(TrackableProperty.Controller, ownerAndController);
         set(TrackableProperty.ImageKey, imageKey);
     }
-
     public PlayerView getOwner() {
         return get(TrackableProperty.Owner);
     }
@@ -1061,6 +1060,8 @@ public class CardView extends GameEntityView {
                     mergedCollection.add(card);
                 }
             }
+        } else {
+            set(TrackableProperty.MergedCards, null);
         }
         updateMergeCollections(mergedCollection);
 
@@ -1068,6 +1069,10 @@ public class CardView extends GameEntityView {
         if (isSplitCard) {
             set(TrackableProperty.LeftSplitState, c.getState(CardStateName.LeftSplit).getView());
             set(TrackableProperty.RightSplitState, c.getState(CardStateName.RightSplit).getView());
+
+            // need to update ability text
+            getLeftSplitState().updateAbilityText(c, c.getState(CardStateName.LeftSplit));
+            getRightSplitState().updateAbilityText(c, c.getState(CardStateName.RightSplit));
         }
 
         CardStateView currentStateView = currentState.getView();

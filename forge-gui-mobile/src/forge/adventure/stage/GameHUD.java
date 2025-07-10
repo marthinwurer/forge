@@ -786,6 +786,7 @@ public class GameHUD extends Stage {
         console.toggle();
         if (console.isVisible()) {
             clearAbility();
+            console.setZIndex(ui.getChildren().size);
         } else {
             updateAbility();
         }
@@ -794,6 +795,12 @@ public class GameHUD extends Stage {
     @Override
     public boolean keyUp(int keycode) {
         ui.pressUp(keycode);
+    
+        Button pressedButton = ui.buttonPressed(keycode);
+        if (pressedButton != null) {
+            pressedButton.fire(eventTouchUp);
+        }
+
         return super.keyUp(keycode);
     }
 
@@ -807,16 +814,17 @@ public class GameHUD extends Stage {
             toggleConsole();
             return true;
         }
-        if (keycode == Input.Keys.BACK) {
+        if (KeyBinding.Back.isPressed(keycode)) {
             if (console.isVisible()) {
                 toggleConsole();
+                return true;
             }
         }
         if (console.isVisible())
             return true;
         Button pressedButton = ui.buttonPressed(keycode);
         if (pressedButton != null) {
-            performTouch(pressedButton);
+            pressedButton.fire(eventTouchDown);
         }
         return super.keyDown(keycode);
     }
@@ -877,7 +885,7 @@ public class GameHUD extends Stage {
         dialogOnlyInput = true;
         gameStage.hudIsShowingDialog(true);
         MapStage.getInstance().hudIsShowingDialog(true);
-        if (Forge.hasGamepad() && !dialogButtonMap.isEmpty())
+        if (Forge.hasExternalInput() && !dialogButtonMap.isEmpty())
             this.setKeyboardFocus(dialogButtonMap.first());
     }
 
