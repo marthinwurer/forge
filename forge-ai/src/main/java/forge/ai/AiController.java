@@ -102,6 +102,10 @@ public class AiController {
     private Set<AIOption> options;
     private List<SpellAbility> skipped;
 
+    public AiController(final Player computerPlayer, final Game game0) {
+        this(computerPlayer, game0, new HashSet<>());
+    }
+
     public AiController(final Player computerPlayer, final Game game0, final Set<AIOption> options) {
         player = computerPlayer;
         game = game0;
