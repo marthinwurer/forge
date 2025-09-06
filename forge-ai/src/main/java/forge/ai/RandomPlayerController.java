@@ -14,6 +14,7 @@ import forge.game.*;
 import forge.game.ability.effects.RollDiceEffect;
 import forge.game.card.*;
 import forge.game.combat.Combat;
+import forge.game.combat.CombatUtil;
 import forge.game.cost.Cost;
 import forge.game.cost.CostPart;
 import forge.game.cost.CostPartMana;
@@ -558,8 +559,8 @@ public class RandomPlayerController extends PlayerController {
                 CardCollection attackers = combat.getAttackers();
                 if (!attackers.isEmpty()) {
                     Card attacker = attackers.get(random.nextInt(attackers.size()));
-                    // Skip complex canBlock check for simplicity
-                    if (true) {
+                    // Simple check - can this creature block this attacker
+                    if (CombatUtil.canBlock(attacker, creature)) {
                         combat.addBlocker(attacker, creature);
                     }
                 }
@@ -1319,6 +1320,11 @@ public class RandomPlayerController extends PlayerController {
     @Override
     public void cancelAwaitNextInput() {
         // No random choice needed - cancel input wait
+    }
+    
+    @Override
+    public void revealUnsupported(Map<Player, List<PaperCard>> unsupported) {
+        // No random choice needed - just notification of unsupported cards
     }
     
     // Helper method to randomly choose a defender for combat
