@@ -195,7 +195,7 @@ public class ForgeScript {
             return sa.isKeyword(Keyword.SADDLE);
         } else if (property.equals("Station")) {
             return sa.isKeyword(Keyword.STATION);
-        }else if (property.equals("Cycling")) {
+        } else if (property.equals("Cycling")) {
             return sa.isCycling();
         } else if (property.equals("Dash")) {
             return sa.isDash();
@@ -237,6 +237,8 @@ public class ForgeScript {
             return sa.isBoast();
         } else if (property.equals("Exhaust")) {
             return sa.isExhaust();
+        } else if (property.equals("Mayhem")) {
+            return sa.isMayhem();
         } else if (property.equals("Mutate")) {
             return sa.isMutate();
         } else if (property.equals("Ninjutsu")) {
@@ -257,6 +259,8 @@ public class ForgeScript {
             return sa.isKeyword(Keyword.DAYBOUND);
         } else if (property.equals("Nightbound")) {
             return sa.isKeyword(Keyword.NIGHTBOUND);
+        } else if (property.equals("Warp")) {
+            return sa.isWarp();
         } else if (property.equals("Ward")) {
             return sa.isKeyword(Keyword.WARD);
         } else if (property.equals("CumulativeUpkeep")) {
