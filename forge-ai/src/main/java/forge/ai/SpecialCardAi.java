@@ -1326,6 +1326,44 @@ public class SpecialCardAi {
 
             return new CardCollection(toKeep);
         }
+        
+        /**
+         * Check if AI should cast Phyrexian Dreadnought based on having responses to its ETB trigger.
+         * Returns true if AI has Stifle or Vision Charm available to deal with the sacrifice requirement.
+         */
+        public static boolean shouldCastWithResponse(final Player ai, final SpellAbility sa) {
+            final Card source = sa.getHostCard();
+            
+            // Check if we have enough mana to cast Dreadnought (1 mana) plus a response (1 mana)
+            if (ComputerUtilMana.getAvailableManaEstimate(ai) < 2) {
+                return false;
+            }
+            
+            // Look for Stifle in hand - can counter the triggered ability
+            CardCollectionView handView = ai.getCardsIn(ZoneType.Hand);
+            CardCollection hand = new CardCollection(handView);
+            for (Card card : hand) {
+                if ("Stifle".equals(card.getName())) {
+                    // Check if we can cast both Dreadnought and Stifle
+                    SpellAbility stifleAbility = card.getFirstSpellAbility();
+                    if (stifleAbility != null && stifleAbility.canPlay() && 
+                        ComputerUtilMana.hasEnoughManaSourcesToCast(stifleAbility, ai)) {
+                        return true;
+                    }
+                }
+                
+                // Look for Vision Charm - can phase out the Dreadnought
+                if ("Vision Charm".equals(card.getName())) {
+                    SpellAbility charmAbility = card.getFirstSpellAbility();
+                    if (charmAbility != null && charmAbility.canPlay() &&
+                        ComputerUtilMana.hasEnoughManaSourcesToCast(charmAbility, ai)) {
+                        return true;
+                    }
+                }
+            }
+            
+            return false;
+        }
     }
 
     // Power Struggle

@@ -77,4 +77,34 @@ public class AIIntegrationTests extends AITest {
 
         AssertJUnit.assertEquals(14, opponent.getLife());
     }
+
+    @Test
+    public void testDreadnoughtStifle() {
+        // Test that the AI will play a Phyrexian Dreadnought and stifle the trigger
+        Game game = initAndCreateGame();
+        Player p = game.getPlayers().get(1);
+        p.setTeam(0);
+        addCardToZone("Phyrexian Dreadnought", p, ZoneType.Hand);
+        addCardToZone("Stifle", p, ZoneType.Hand);
+        addCard("Island", p);
+        addCard("Island", p);
+
+        Player opponent = game.getPlayers().get(0);
+        opponent.setTeam(1);
+
+        // Fill deck with lands so we can goldfish a few turns
+        for (int i = 0; i < 60; i++) {
+            addCardToZone("Island", opponent, ZoneType.Library);
+            // Add something they can't cast
+            addCardToZone("Stone Golem", p, ZoneType.Library);
+        }
+
+        for (int i = 0; i < 3; i++) {
+            this.playUntilNextTurn(game);
+        }
+
+        System.out.println(this.gameStateToString(game));
+
+        AssertJUnit.assertEquals(1, this.countCardsWithName(game, "Phyrexian Dreadnought"));
+    }
 }

@@ -945,6 +945,26 @@ public class AiController {
         }
 
         final Card card = sa.getHostCard();
+        
+        // Special logic for Phyrexian Dreadnought - only play if we have responses OR enough creatures to sacrifice
+        if (card != null && "Phyrexian Dreadnought".equals(card.getName()) && 
+            sa.isSpell() && sa instanceof SpellPermanent) {
+            // Check if we can cast with Stifle/Vision Charm response
+            if (SpecialCardAi.PhyrexianDreadnought.shouldCastWithResponse(player, sa)) {
+                // We have a response, allow casting
+            } else {
+                // Check if we have enough creatures to sacrifice normally (12+ total power)
+                int totalPower = 0;
+                for (Card creature : player.getCreaturesInPlay()) {
+                    if (!creature.getName().equals("Phyrexian Dreadnought")) {
+                        totalPower += Math.max(0, creature.getNetPower());
+                    }
+                }
+                if (totalPower < 12) {
+                    return AiPlayDecision.CantPlayAi;
+                }
+            }
+        }
 
         // Trying to play a card that has Buyback without a Buyback cost, look for possible additional considerations
         if (getBooleanProperty(AiProps.TRY_TO_PRESERVE_BUYBACK_SPELLS)) {

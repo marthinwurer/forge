@@ -46,6 +46,21 @@ public class CounterAi extends SpellAbilityAi {
                 return new AiAbilityDecision(0, AiPlayDecision.CantPlayAi);
             }
         }
+        
+        // Special logic for Stifle to counter Phyrexian Dreadnought ETB trigger
+        if ("Stifle".equals(sourceName)) {
+            final SpellAbility topSA = ComputerUtilAbility.getTopSpellAbilityOnStack(game, sa);
+            if (topSA != null && topSA.getHostCard() != null && 
+                "Phyrexian Dreadnought".equals(topSA.getHostCard().getName()) &&
+                topSA.isTrigger() && topSA.getActivatingPlayer() == ai) {
+                // This is our own Phyrexian Dreadnought's ETB trigger - counter it to keep the creature
+                sa.resetTargets();
+                if (sa.canTargetSpellAbility(topSA)) {
+                    sa.getTargets().add(topSA);
+                    return new AiAbilityDecision(1000, AiPlayDecision.WillPlay); // High priority
+                }
+            }
+        }
 
         if (sa.usesTargeting()) {
             final SpellAbility topSA = ComputerUtilAbility.getTopSpellAbilityOnStack(game, sa);

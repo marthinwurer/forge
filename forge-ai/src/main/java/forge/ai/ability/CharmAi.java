@@ -8,6 +8,8 @@ import forge.game.card.Card;
 import forge.game.player.Player;
 import forge.game.spellability.AbilitySub;
 import forge.game.spellability.SpellAbility;
+import forge.game.spellability.SpellAbilityStackInstance;
+import forge.game.zone.ZoneType;
 import forge.util.Aggregates;
 import forge.util.collect.FCollection;
 
@@ -44,6 +46,8 @@ public class CharmAi extends SpellAbilityAi {
             chosenList = choices.subList(1, choices.size());
         } else if ("Triskaidekaphobia".equals(ComputerUtilAbility.getAbilitySourceName(sa))) {
             chosenList = chooseTriskaidekaphobia(choices, ai);
+        } else if ("Vision Charm".equals(ComputerUtilAbility.getAbilitySourceName(sa))) {
+            chosenList = chooseVisionCharm(choices, ai, sa);
         } else {
             // only randomize if not all possible together
             if (num < choices.size()) {
@@ -266,7 +270,52 @@ public class CharmAi extends SpellAbilityAi {
             chosenList.clear();
         }
         return chosenList;
-    } 
+    }
+    
+    private List<AbilitySub> chooseVisionCharm(List<AbilitySub> choices, Player ai, SpellAbility sa) {
+        List<AbilitySub> chosenList = Lists.newArrayList();
+        
+        // Check if there's a Phyrexian Dreadnought ETB trigger on the stack that we want to avoid
+        Card dreadnought = null;
+        for (Card card : ai.getCardsIn(ZoneType.Battlefield)) {
+            if ("Phyrexian Dreadnought".equals(card.getName())) {
+                dreadnought = card;
+                break;
+            }
+        }
+        boolean shouldPhaseOutDreadnought = false;
+        
+        if (dreadnought != null) {
+            // Check if there's a triggered ability from our Dreadnought on the stack
+            for (SpellAbilityStackInstance si : ai.getGame().getStack()) {
+                SpellAbility stackSA = si.getSpellAbility();
+                if (stackSA.getHostCard() != null && stackSA.getHostCard().equals(dreadnought) &&
+                    stackSA.isTrigger() && stackSA.getActivatingPlayer() == ai) {
+                    shouldPhaseOutDreadnought = true;
+                    break;
+                }
+            }
+        }
+        
+        // Look for the phase out option if we want to phase out our Dreadnought
+        if (shouldPhaseOutDreadnought) {
+            for (AbilitySub choice : choices) {
+                if (choice.hasParam("SpellDescription") && 
+                    choice.getParam("SpellDescription").contains("Target artifact phases out")) {
+                    // This is the phase out option - check if we can target our Dreadnought
+                    if (choice.usesTargeting() && choice.canTarget(dreadnought)) {
+                        choice.resetTargets();
+                        choice.getTargets().add(dreadnought);
+                        chosenList.add(choice);
+                        return chosenList;
+                    }
+                }
+            }
+        }
+        
+        // Default behavior - let normal AI logic choose
+        return Lists.newArrayList();
+    }
 
     @Override
     public Player chooseSinglePlayer(Player ai, SpellAbility sa, Iterable<Player> opponents, Map<String, Object> params) {
