@@ -1616,13 +1616,14 @@ public class AiController {
         if (!game.getStack().isEmpty()) {
             top = game.getStack().peekAbility();
         }
-        final boolean topOwnedByAI = top != null && top.getActivatingPlayer().equals(player);
+        final boolean topOwnedByAI = top != null && (top.getActivatingPlayer().equals(player) || (top.isTrigger() && top.getHostCard().getController().equals(player)));
 
         // Must respond: cases where the AI should respond to its own triggers or other abilities (need to add negative stuff to be countered here)
         boolean mustRespond = false;
         if (top != null) {
             mustRespond = top.hasParam("AIRespondsToOwnAbility"); // Forced combos (currently defined for Sensei's Divining Top)
             mustRespond |= top.isTrigger() && top.getTrigger().isKeyword(Keyword.EVOKE); // Evoke sacrifice trigger
+            mustRespond |= topOwnedByAI && top.isTrigger() && top.getHostCard().getName().equals("Phyrexian Dreadnought");
         }
 
         if (topOwnedByAI) {

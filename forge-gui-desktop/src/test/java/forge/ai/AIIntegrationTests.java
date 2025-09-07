@@ -99,12 +99,17 @@ public class AIIntegrationTests extends AITest {
             addCardToZone("Stone Golem", p, ZoneType.Library);
         }
 
-        for (int i = 0; i < 3; i++) {
-            this.playUntilNextTurn(game);
-        }
+        game.getPhaseHandler().devAdvanceToPhase(PhaseType.MAIN2);
+        game.getPhaseHandler().onStackResolved();
 
-        System.out.println(this.gameStateToString(game));
+        // take a step. This is the second main, so we should cast the nought
+        game.getPhaseHandler().mainLoopStep();
+        AssertJUnit.assertTrue(game.getStack().peek().getSourceCard().getName().equals("Phyrexian Dreadnought"));
 
+        // pass priority
+        game.getPhaseHandler().mainLoopStep();
+        game.getPhaseHandler().mainLoopStep();
+        this.playUntilStackClear(game);
         AssertJUnit.assertEquals(1, this.countCardsWithName(game, "Phyrexian Dreadnought"));
     }
 }

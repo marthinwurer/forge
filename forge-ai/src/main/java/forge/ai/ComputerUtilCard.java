@@ -2010,6 +2010,13 @@ public class ComputerUtilCard {
             }
         }
         if (card.getSVar(needsToPlayVarName).length() > 0) {
+            // Special case for Phyrexian Dreadnought - allow casting if we have responses even if normal criteria not met
+            if ("Phyrexian Dreadnought".equals(card.getName()) && sa != null && sa.isSpell()) {
+                if (SpecialCardAi.PhyrexianDreadnought.shouldCastWithResponse(sa.getActivatingPlayer(), sa)) {
+                    return AiPlayDecision.WillPlay; // We have a response, override the normal criteria
+                }
+            }
+            
             final String needsToPlay = card.getSVar(needsToPlayVarName);
             String sVar = needsToPlay.split(" ")[0];
             String comparator = needsToPlay.split(" ")[1];
