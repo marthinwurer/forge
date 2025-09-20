@@ -35,7 +35,7 @@ public class ForgeScript {
         boolean withSource = property.endsWith("Source");
         final ColorSet colors;
         if (withSource && StaticAbilityColorlessDamageSource.colorlessDamageSource(cardState)) {
-            colors = ColorSet.getNullColor();
+            colors = ColorSet.NO_COLORS;
         } else {
             colors = cardState.getCard().getColor(cardState);
         }
@@ -412,6 +412,8 @@ public class ForgeScript {
                 return !sa.isPwAbility() && !sa.getRestrictions().isSorcerySpeed();
             }
             return true;
+        } else if(property.startsWith("NamedAbility")) {
+            return sa.getName().equals(property.substring(12));
         } else if (sa.getHostCard() != null) {
             return sa.getHostCard().hasProperty(property, sourceController, source, spellAbility);
         }

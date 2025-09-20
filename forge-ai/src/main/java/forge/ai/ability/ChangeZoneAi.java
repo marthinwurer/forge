@@ -299,13 +299,7 @@ public class ChangeZoneAi extends SpellAbilityAi {
         boolean activateForCost = ComputerUtil.activateForCost(sa, ai);
 
         if (sa.hasParam("Origin")) {
-            try {
-                origin = ZoneType.listValueOf(sa.getParam("Origin"));
-            } catch (IllegalArgumentException ex) {
-                // This happens when Origin is something like
-                // "Graveyard,Library" (Doomsday)
-                return new AiAbilityDecision(0, AiPlayDecision.CantPlayAi);
-            }
+            origin = ZoneType.listValueOf(sa.getParam("Origin"));
         }
         final String destination = sa.getParam("Destination");
 
@@ -909,8 +903,6 @@ public class ChangeZoneAi extends SpellAbilityAi {
             list.remove(source); // spells can't target their own source, because it's actually in the stack zone
         }
 
-        // list = CardLists.canSubsequentlyTarget(list, sa);
-
         if (sa.hasParam("AttachedTo")) {
             list = CardLists.filter(list, c -> {
                 for (Card card : game.getCardsIn(ZoneType.Battlefield)) {
@@ -1253,50 +1245,9 @@ public class ChangeZoneAi extends SpellAbilityAi {
                 }
             }
 
-            // if max CMC exceeded, do not choose this card (but keep looking for other options)
-            if (sa.hasParam("MaxTotalTargetCMC")) {
-                if (choice.getCMC() > sa.getTargetRestrictions().getMaxTotalCMC(choice, sa) - sa.getTargets().getTotalTargetedCMC()) {
-                    list.remove(choice);
-                    continue;
-                }
-            }
-
-            // if max power exceeded, do not choose this card (but keep looking for other options)
-            if (sa.hasParam("MaxTotalTargetPower")) {
-                if (choice.getNetPower() > sa.getTargetRestrictions().getMaxTotalPower(choice, sa) -sa.getTargets().getTotalTargetedPower()) {
-                    list.remove(choice);
-                    continue;
-                }
-            }
-
-            // honor the Same Creature Type restriction
-            if (sa.getTargetRestrictions().isWithSameCreatureType()) {
-                Card firstTarget = sa.getTargetCard();
-                if (firstTarget != null && !choice.sharesCreatureTypeWith(firstTarget)) {
-                    list.remove(choice);
-                    continue;
-                }
-            }
-
             list.remove(choice);
             if (sa.canTarget(choice)) {
                 sa.getTargets().add(choice);
-            }
-        }
-
-        // Honor the Single Zone restriction. For now, simply remove targets that do not belong to the same zone as the first targeted card.
-        // TODO: ideally the AI should consider at this point which targets exactly to pick (e.g. one card in the first player's graveyard
-        // vs. two cards in the second player's graveyard, which cards are more relevant to be targeted, etc.). Consider improving.
-        if (sa.getTargetRestrictions().isSingleZone()) {
-            Card firstTgt = sa.getTargetCard();
-            CardCollection toRemove = new CardCollection();
-            if (firstTgt != null) {
-                for (Card t : sa.getTargets().getTargetCards()) {
-                    if (!t.getController().equals(firstTgt.getController())) {
-                        toRemove.add(t);
-                    }
-                }
-                sa.getTargets().removeAll(toRemove);
             }
         }
 
