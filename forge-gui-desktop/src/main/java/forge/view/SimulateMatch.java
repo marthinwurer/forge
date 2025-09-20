@@ -171,7 +171,7 @@ public class SimulateMatch {
         System.out.println("\tq - Quiet flag. Output just the game result, not the entire game log.");
     }
 
-    public static void simulateSingleMatch(final Match mc, int iGame, boolean outputGamelog) {
+    public static Game simulateSingleGameOfMatch(final Match mc, int timeout) {
         final StopWatch sw = new StopWatch();
         sw.start();
 
@@ -195,6 +195,13 @@ public class SimulateMatch {
             }
         }
 
+        return g1;
+    }
+
+    public static void simulateSingleMatch(final Match mc, int iGame, boolean outputGamelog) {
+        final StopWatch sw = new StopWatch();
+        sw.start();
+        final Game g1 = simulateSingleGameOfMatch(mc, 120);
         List<GameLogEntry> log;
         if (outputGamelog) {
             log = g1.getGameLog().getLogEntries(null);
