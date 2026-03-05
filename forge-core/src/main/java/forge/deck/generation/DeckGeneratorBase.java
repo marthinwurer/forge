@@ -381,14 +381,11 @@ public abstract class DeckGeneratorBase {
             addCardNameToList("Undiscovered Paradise", dLands);
         }
 
-        if (colors.countColors() > 2) {
-            addCardNameToList("Evolving Wilds", dLands);
-            addCardNameToList("Terramorphic Expanse", dLands);
-        }
-
         //filter to provide all dual lands from pool matching 2 or 3 colors from current deck
         Predicate<CardRules> dualLandFilter = CardRulesPredicates.coreType(CardType.CoreType.Land);
         Predicate<CardRules> exceptBasicLand = CardRulesPredicates.NOT_BASIC_LAND;
+
+        // TODO get fetchlands too
 
         Iterable<PaperCard> landCards = pool.getAllCards(PaperCardPredicates.fromRules(dualLandFilter.and(exceptBasicLand).and(canPlay)));
         Iterable<String> dualLandPatterns = Arrays.asList("Add \\{([WUBRG])\\} or \\{([WUBRG])\\}",
@@ -399,6 +396,12 @@ public abstract class DeckGeneratorBase {
             regexLandSearch(pattern, landCards);
         }
         regexFetchLandSearch(landCards);
+
+        // add these if there aren't many other good options or if we're 3+ colors
+        if (colors.countColors() > 2 || dLands.size() <= 20) {
+            addCardNameToList("Evolving Wilds", dLands);
+            addCardNameToList("Terramorphic Expanse", dLands);
+        }
 
         return dLands;
     }
