@@ -84,6 +84,10 @@ public class PlayerControllerAi extends PlayerController {
         brains.setUseSimulation(value);
     }
 
+    public void setUseMcts(boolean value) {
+        brains.setUseMcts(value);
+    }
+
     @Override
     public SpellAbility getAbilityToPlay(Card hostCard, List<SpellAbility> abilities, ITriggerEvent triggerEvent) {
         if (abilities.isEmpty()) {

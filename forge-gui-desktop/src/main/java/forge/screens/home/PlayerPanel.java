@@ -75,6 +75,7 @@ public class PlayerPanel extends FPanel {
     private FRadioButton radioHuman;
     private FRadioButton radioAi;
     private JCheckBoxMenuItem radioAiUseSimulation;
+    private JCheckBoxMenuItem radioAiUseMcts;
     private FRadioButton radioOpen;
     private FCheckBox chkReady;
 
@@ -475,15 +476,27 @@ public class PlayerPanel extends FPanel {
     }
 
     public Set<AIOption> getAiOptions() {
-        return isSimulatedAi()
-                ? ImmutableSet.of(AIOption.USE_SIMULATION)
-                : Collections.emptySet();
+        ImmutableSet.Builder<AIOption> builder = ImmutableSet.builder();
+        if (isSimulatedAi()) {
+            builder.add(AIOption.USE_SIMULATION);
+        }
+        if (isMctsAi()) {
+            builder.add(AIOption.USE_MCTS);
+        }
+        Set<AIOption> options = builder.build();
+        return options.isEmpty() ? Collections.emptySet() : options;
     }
     private boolean isSimulatedAi() {
         return radioAi.isSelected() && radioAiUseSimulation.isSelected();
     }
+    private boolean isMctsAi() {
+        return radioAi.isSelected() && radioAiUseMcts.isSelected();
+    }
     public void setUseAiSimulation(final boolean useSimulation) {
         radioAiUseSimulation.setSelected(useSimulation);
+    }
+    public void setUseAiMcts(final boolean useMcts) {
+        radioAiUseMcts.setSelected(useMcts);
     }
 
     public boolean isArchenemy() {
@@ -649,6 +662,9 @@ public class PlayerPanel extends FPanel {
         radioAiUseSimulation = new JCheckBoxMenuItem(localizer.getMessage("lblUseSimulation"));
         menu.add(radioAiUseSimulation);
         radioAiUseSimulation.addActionListener(e -> lobby.firePlayerChangeListener(index));
+        radioAiUseMcts = new JCheckBoxMenuItem("Use MCTS");
+        menu.add(radioAiUseMcts);
+        radioAiUseMcts.addActionListener(e -> lobby.firePlayerChangeListener(index));
         radioAi.setComponentPopupMenu(menu);
 
         radioHuman.addMouseListener(radioMouseAdapter(radioHuman, LobbySlotType.LOCAL));

@@ -3,6 +3,7 @@ package forge.ai;
 import java.util.Set;
 
 import forge.LobbyPlayer;
+import forge.ai.mcts.PlayerControllerMcts;
 import forge.game.Game;
 import forge.game.player.IGameEntitiesFactory;
 import forge.game.player.Player;
@@ -14,11 +15,17 @@ public class LobbyPlayerAi extends LobbyPlayer implements IGameEntitiesFactory {
     private boolean rotateProfileEachGame;
     private boolean allowCheatShuffle;
     private boolean useSimulation;
+    private boolean useMcts;
 
     public LobbyPlayerAi(String name, Set<AIOption> options) {
         super(name);
-        if (options != null && options.contains(AIOption.USE_SIMULATION)) {
-            this.useSimulation = true;
+        if (options != null) {
+            if (options.contains(AIOption.USE_SIMULATION)) {
+                this.useSimulation = true;
+            }
+            if (options.contains(AIOption.USE_MCTS)) {
+                this.useMcts = true;
+            }
         }
     }
 
@@ -41,8 +48,14 @@ public class LobbyPlayerAi extends LobbyPlayer implements IGameEntitiesFactory {
     }
 
     private PlayerControllerAi createControllerFor(Player ai) {
-        PlayerControllerAi result = new PlayerControllerAi(ai.getGame(), ai, this);
+        PlayerControllerAi result;
+        if (useMcts) {
+            result = new PlayerControllerMcts(ai.getGame(), ai, this);
+        } else {
+            result = new PlayerControllerAi(ai.getGame(), ai, this);
+        }
         result.setUseSimulation(useSimulation);
+        result.setUseMcts(useMcts);
         result.allowCheatShuffle(allowCheatShuffle);
         return result;
     }

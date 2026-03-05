@@ -97,6 +97,7 @@ public class AiController {
     private Combat predictedCombatNextTurn;
     private boolean cheatShuffle;
     private boolean useSimulation;
+    private boolean useMcts;
     private SpellAbilityPicker simPicker;
     private int lastAttackAggression;
     private boolean useLivingEnd;
@@ -124,6 +125,14 @@ public class AiController {
 
     public void setUseSimulation(boolean value) {
         this.useSimulation = value;
+    }
+
+    public boolean usesMcts() {
+        return this.useMcts;
+    }
+
+    public void setUseMcts(boolean value) {
+        this.useMcts = value;
     }
 
     public int getAttackAggression() {
@@ -1362,6 +1371,38 @@ public class AiController {
 
         if (useSimulation) {
             return singleSpellAbilityList(simPicker.chooseSpellAbilityToPlay(null));
+        }
+
+        if (useMcts) {
+            forge.ai.mcts.MctsGameState mctsState = new forge.ai.mcts.MctsGameState(game, player);
+            forge.ai.mcts.MctsSearch mctsSearch = new forge.ai.mcts.MctsSearch();
+            forge.ai.mcts.MctsMove bestMove = mctsSearch.findBestMove(mctsState);
+            if (bestMove != null && bestMove.getType() == forge.ai.mcts.MctsMove.MoveType.SPELL_ABILITY) {
+                int index = bestMove.getIndex();
+                if (index < 0) {
+                    // Land play
+                    int landIndex = -(index + 1);
+                    CardCollection landsToPlay = ComputerUtilAbility.getAvailableLandsToPlay(game, player);
+                    if (landsToPlay != null && landIndex < landsToPlay.size()) {
+                        Card land = landsToPlay.get(landIndex);
+                        List<SpellAbility> abilities = land.getAllPossibleAbilities(player, true);
+                        abilities.removeIf(sa -> !sa.isLandAbility());
+                        if (!abilities.isEmpty()) {
+                            return abilities;
+                        }
+                    }
+                } else {
+                    // Spell/ability
+                    List<SpellAbility> candidates = simPicker.getCandidateSpellsAndAbilities();
+                    if (index < candidates.size()) {
+                        SpellAbility sa = candidates.get(index);
+                        if (canPlaySa(sa) == AiPlayDecision.WillPlay) {
+                            return singleSpellAbilityList(sa);
+                        }
+                    }
+                }
+            }
+            return null; // pass
         }
 
         CardCollection playBeforeLand = CardLists.filter(
