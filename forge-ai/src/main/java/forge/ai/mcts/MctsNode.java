@@ -65,9 +65,9 @@ public class MctsNode {
     }
 
     /**
-     * Get the best move (child with highest visit count - most robust selection).
+     * Get the best child node (highest visit count - most robust selection).
      */
-    public MctsMove getBestMove() {
+    public MctsNode getBestChild() {
         MctsNode bestChild = null;
         int bestVisits = -1;
         for (MctsNode child : children) {
@@ -76,6 +76,14 @@ public class MctsNode {
                 bestChild = child;
             }
         }
+        return bestChild;
+    }
+
+    /**
+     * Get the best move (child with highest visit count - most robust selection).
+     */
+    public MctsMove getBestMove() {
+        MctsNode bestChild = getBestChild();
         return bestChild != null ? bestChild.move : null;
     }
 

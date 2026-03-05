@@ -46,7 +46,7 @@ public class GameFuzzingTest {
         final RegisteredPlayer p2 = new RegisteredPlayer(second_deck);
 
         Set<AIOption> options = new HashSet<>();
-        // options.add(AIOption.USE_SIMULATION);
+        options.add(AIOption.USE_MCTS);
         p1.setPlayer(new LobbyPlayerAi("p1", options));
         p2.setPlayer(new LobbyPlayerAi("p2", options));
         GameRules rules = new GameRules(GameType.Constructed);

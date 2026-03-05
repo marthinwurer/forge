@@ -45,10 +45,15 @@ public class MctsSearch {
 
         long startTime = System.currentTimeMillis();
         int iterations = 0;
+        long totalCopyMs = 0;
+        long totalSelectionMs = 0;
+        long totalRolloutMs = 0;
+        long totalEvalMs = 0;
 
         while (iterations < maxIterations
                 && (System.currentTimeMillis() - startTime) < timeLimitMs) {
             // 1. Selection: walk tree via UCB1 until we find a node to expand
+            long selStart = System.currentTimeMillis();
             MctsNode node = root;
             MctsGameState state = rootState.copy();
 
@@ -71,15 +76,27 @@ public class MctsSearch {
                 node = node.expand(childMoves);
                 state = childState;
             }
+            long selEnd = System.currentTimeMillis();
+            totalSelectionMs += (selEnd - selStart);
 
             // 3. Rollout: play forward using AI heuristics
             double value;
             if (state.isTerminal()) {
+                long evalStart = System.currentTimeMillis();
                 value = state.evaluate();
+                totalEvalMs += (System.currentTimeMillis() - evalStart);
             } else {
+                long copyStart = System.currentTimeMillis();
                 MctsGameState rolloutState = state.copy();
+                totalCopyMs += (System.currentTimeMillis() - copyStart);
+
+                long rolloutStart = System.currentTimeMillis();
                 rolloutState.rollout(rolloutTurns);
+                totalRolloutMs += (System.currentTimeMillis() - rolloutStart);
+
+                long evalStart = System.currentTimeMillis();
                 value = rolloutState.evaluate();
+                totalEvalMs += (System.currentTimeMillis() - evalStart);
             }
 
             // 4. Backpropagation: update statistics up to root
@@ -88,7 +105,18 @@ public class MctsSearch {
             iterations++;
         }
 
-        return root.getBestMove();
+        long totalMs = System.currentTimeMillis() - startTime;
+        MctsMove bestMove = root.getBestMove();
+        System.out.printf("[MCTS] %d iterations in %dms (%.1f iter/s) | selection: %dms | rollout copy: %dms | rollout play: %dms | eval: %dms | best: %s (visits=%d, avg=%.3f) | %d legal moves%n",
+                iterations, totalMs,
+                iterations * 1000.0 / Math.max(totalMs, 1),
+                totalSelectionMs, totalCopyMs, totalRolloutMs, totalEvalMs,
+                bestMove,
+                root.getBestChild() != null ? root.getBestChild().getVisitCount() : 0,
+                root.getBestChild() != null ? root.getBestChild().getAverageValue() : 0.0,
+                rootMoves.size());
+
+        return bestMove;
     }
 
     public void setMaxIterations(int maxIterations) {
